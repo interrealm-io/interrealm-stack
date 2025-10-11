@@ -1,0 +1,12 @@
+{
+  "name": "pricing-agent",
+  "version": "1.0.0",
+  "description": "Pricing Agent for RealmMesh MVP",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}
