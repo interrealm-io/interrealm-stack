@@ -1,4 +1,4 @@
-import { Service, Inject, ServiceClient, EventPublisher } from '@interrealm/sdk';
+import { Service, Inject, ServiceClient, EventPublisher } from '@realmtrix/sdk';
 import {
   GenerateInvoiceInput,
   GenerateInvoiceOutput,

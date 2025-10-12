@@ -17,7 +17,7 @@ A comprehensive SDK for building decentralized mesh services using TypeScript/Ja
 ### 1. Installation
 
 ```bash
-npm install @interrealm/sdk reflect-metadata
+npm install @realmtrix/sdk reflect-metadata
 ```
 
 ### 2. Create a Capability Definition
@@ -52,7 +52,7 @@ npx @realmmesh/cli generate capabilities/my-service.yaml -o src/generated/types.
 ### 4. Implement Your Service
 
 ```typescript
-import { Service } from '@interrealm/sdk';
+import { Service } from '@realmtrix/sdk';
 import { ProcessDataInput, ProcessDataOutput } from './generated/types';
 
 @Service({
@@ -69,7 +69,7 @@ export class MyService {
 ### 5. Bootstrap Your Application
 
 ```typescript
-import { Realm, loadRealmConfigFromEnv } from '@interrealm/sdk';
+import { Realm, loadRealmConfigFromEnv } from '@realmtrix/sdk';
 import { config } from 'dotenv';
 import 'reflect-metadata';
 

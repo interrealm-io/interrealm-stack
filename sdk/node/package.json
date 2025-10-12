@@ -1,6 +1,6 @@
 {
-  "name": "@interrealm/sdk",
-  "version": "1.0.0",
+  "name": "@realmtrix/sdk",
+  "version": "0.1.2",
   "description": "InterRealm Node.js SDK for building decentralized mesh services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -72,7 +72,7 @@ export class CapabilityCodeGenerator {
       lines.push(`// ${capability.capability.description}`);
     }
     lines.push('');
-    lines.push("import { Service, Agent, EventHandler, LoopParticipant, ServiceClient, EventPublisher } from '@interrealm/sdk';");
+    lines.push("import { Service, Agent, EventHandler, LoopParticipant, ServiceClient, EventPublisher } from '@realmtrix/sdk';");
     lines.push('');
 
     this.generateMetadata(capability, lines);

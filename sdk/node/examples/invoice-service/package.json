@@ -10,7 +10,7 @@
     "generate": "node ../../cli/generate.ts capabilities/invoice-management.yaml -o src/generated/invoice-types.ts"
   },
   "dependencies": {
-    "@interrealm/sdk": "file:../../",
+    "@realmtrix/sdk": "file:../../",
     "reflect-metadata": "^0.1.13",
     "dotenv": "^16.3.1"
   },

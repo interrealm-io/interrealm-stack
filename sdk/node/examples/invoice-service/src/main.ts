@@ -1,4 +1,4 @@
-import { Realm, loadRealmConfigFromEnv } from '@interrealm/sdk';
+import { Realm, loadRealmConfigFromEnv } from '@realmtrix/sdk';
 import { config } from 'dotenv';
 import 'reflect-metadata';
 
