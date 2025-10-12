@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LayoutDashboard, Network, Settings } from "lucide-react"
+import { Network, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RealmTreeTopology } from "./realm-tree-topology"
 import { RealmsMonitor } from "./realms-monitor"
@@ -11,7 +11,7 @@ import { WebSocketProvider } from "@/lib/websocket-context"
 type NavSection = "dashboard" | "topology" | "admin"
 
 export function AppShell() {
-  const [activeSection, setActiveSection] = useState<NavSection>("topology")
+  const [activeSection, setActiveSection] = useState<NavSection>("dashboard")
 
   const shellId = useState(() => Math.random().toString(36).substr(2, 9))[0]
 
@@ -30,49 +30,43 @@ export function AppShell() {
 
   return (
     <WebSocketProvider>
-      <div className="flex h-screen bg-background">
-        {/* Left Icon Navigation */}
-        <div className="flex w-16 flex-col items-center gap-2 border-r border-border bg-card/80 py-4 backdrop-blur-sm">
-          <button
-            onClick={() => setActiveSection("dashboard")}
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-lg transition-colors",
-              activeSection === "dashboard"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-            title="Dashboard"
-          >
-            <LayoutDashboard className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setActiveSection("topology")}
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-lg transition-colors",
-              activeSection === "topology"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-            title="Topology"
-          >
-            <Network className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setActiveSection("admin")}
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-lg transition-colors",
-              activeSection === "admin"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-            title="Admin"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="flex h-screen flex-col bg-background">
+        {/* Header */}
+        <header className="flex items-center justify-between border-b border-border bg-gray-900 px-6 py-4 text-white">
+          <div>
+            <h1 className="text-2xl font-bold">InterRealm Console</h1>
+            <p className="mt-1 text-sm text-gray-400">Real-time broker monitoring</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveSection("admin")}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                activeSection === "admin"
+                  ? "bg-white/20"
+                  : "hover:bg-white/10"
+              )}
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setActiveSection("topology")}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                activeSection === "topology"
+                  ? "bg-white/20"
+                  : "hover:bg-white/10"
+              )}
+              title="Topology View"
+            >
+              <Network className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
 
-        {/* Main Content */}
-        <div className="flex-1">
+        {/* Content */}
+        <div className="flex-1 overflow-hidden">
           {activeSection === "dashboard" && <RealmsMonitor />}
           {activeSection === "topology" && <RealmTreeTopology />}
           {activeSection === "admin" && <AdminPage />}
