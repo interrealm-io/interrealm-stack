@@ -4,6 +4,11 @@
   "description": "InterRealm Node.js SDK for building decentralized mesh services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "cli"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn src/index.ts",
@@ -29,5 +34,18 @@
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"
-  }
+  },
+  "keywords": [
+    "interrealm",
+    "mesh",
+    "microservices",
+    "sdk",
+    "distributed"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/looptix/realm-mesh.git",
+    "directory": "sdk/node"
+  },
+  "license": "MIT"
 }

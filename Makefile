@@ -8,7 +8,9 @@
         mvp-install mvp-demo mvp-fast mvp-continuous mvp-price-check mvp-stress mvp-multi-realm mvp-all-patterns \
         kill-all kill-broker kill-console kill-agents \
         env-setup env-broker env-console env-mvp \
-        dev mvp mvp-start mvp-stop
+        dev mvp mvp-start mvp-stop \
+        release \
+        docker-build docker-build-broker docker-build-console docker-up docker-down docker-logs docker-push docker-push-all
 
 # ==============================================
 # Configuration
@@ -116,6 +118,17 @@ help:
 	@echo "=� Environment Setup:"
 	@echo "  make env-setup          - Generate all .env files from config"
 	@echo "  make broker-db-setup    - Apply Prisma schema to database"
+	@echo ""
+	@echo "=( Docker Commands:"
+	@echo "  make docker-build       - Build all Docker images"
+	@echo "  make docker-up          - Start all services with Docker Compose"
+	@echo "  make docker-down        - Stop all Docker services"
+	@echo "  make docker-logs        - Show logs from all services"
+	@echo "  make docker-push-all    - Push all images to Docker Hub"
+	@echo "  make docker-ps          - Show Docker services status"
+	@echo ""
+	@echo "=� Release Commands:"
+	@echo "  make release TAG=v1.0.0 - Create and push a git tag (triggers CI/CD)"
 
 # ==============================================
 # Environment Setup
@@ -593,3 +606,121 @@ test:
 	@echo "�  Test commands to be implemented"
 	@echo "   cd $(BROKER_DIR) && npm test"
 	@echo "   cd $(SDK_DIR) && npm test"
+
+# ==============================================
+# Release Management
+# ==============================================
+release:
+ifndef TAG
+	@echo "= ERROR: TAG is required!"
+	@echo ""
+	@echo "Usage: make release TAG=v1.0.0"
+	@echo ""
+	@echo "This will:"
+	@echo "  1. Build the SDK to verify it compiles"
+	@echo "  2. Create a git tag with the specified version"
+	@echo "  3. Push the tag to GitHub"
+	@echo "  4. Trigger GitHub Actions to:"
+	@echo "     - Build and push Docker images (broker, console)"
+	@echo "     - Publish SDK to npm"
+	@exit 1
+endif
+	@echo "=� Preparing release $(TAG)..."
+	@echo ""
+	@echo "=� Step 1: Building SDK to verify..."
+	@cd $(SDK_DIR) && npm run build
+	@echo " SDK builds successfully!"
+	@echo ""
+	@echo "=� Step 2: Creating git tag $(TAG)..."
+	@git tag $(TAG)
+	@echo " Tag created!"
+	@echo ""
+	@echo "=� Step 3: Pushing tag to GitHub..."
+	@git push origin $(TAG)
+	@echo ""
+	@echo "< Release $(TAG) Published!"
+	@echo "======================================"
+	@echo ""
+	@echo "= GitHub Actions will now:"
+	@echo "  1. Build Docker images: realmtrix/broker:$(TAG) & realmtrix/console:$(TAG)"
+	@echo "  2. Publish SDK to npm: @interrealm/sdk@$(TAG)"
+	@echo ""
+	@echo "= Monitor progress:"
+	@echo "  https://github.com/looptix/realm-mesh/actions"
+	@echo ""
+	@echo "= When complete, your users can:"
+	@echo "  - npm install @interrealm/sdk@$(TAG)"
+	@echo "  - docker pull realmtrix/broker:$(TAG)"
+	@echo "  - docker pull realmtrix/console:$(TAG)"
+	@echo ""
+
+# ==============================================
+# Docker Commands
+# ==============================================
+docker-build: docker-build-broker docker-build-console
+	@echo " All Docker images built successfully!"
+
+docker-build-broker:
+	@echo "=( Building broker Docker image..."
+	docker build -t realmtrix/broker:latest broker/service/
+	@echo " Broker image built: realmtrix/broker:latest"
+
+docker-build-console:
+	@echo "=( Building console Docker image..."
+	docker build -t realmtrix/console:latest broker/console/
+	@echo " Console image built: realmtrix/console:latest"
+
+docker-up:
+	@echo "=� Starting all services with Docker Compose..."
+	docker-compose up -d
+	@echo ""
+	@echo " Services started!"
+	@echo "  Console UI:       http://localhost:3000"
+	@echo "  Admin API:        http://localhost:3001"
+	@echo "  Internal Gateway: ws://localhost:8080"
+	@echo "  External Gateway: ws://localhost:8443"
+	@echo "  PostgreSQL:       localhost:5433"
+
+docker-down:
+	@echo "=� Stopping all Docker services..."
+	docker-compose down
+	@echo " Services stopped!"
+
+docker-down-volumes:
+	@echo "= Stopping all Docker services and removing volumes..."
+	docker-compose down -v
+	@echo " Services stopped and data removed!"
+
+docker-logs:
+	@echo "=� Showing logs from all services..."
+	docker-compose logs -f
+
+docker-logs-broker:
+	@echo "=� Showing broker logs..."
+	docker-compose logs -f broker
+
+docker-logs-console:
+	@echo "=� Showing console logs..."
+	docker-compose logs -f console
+
+docker-push-broker:
+	@echo "=� Pushing broker image to Docker Hub..."
+	docker push realmtrix/broker:latest
+	@echo " Broker image pushed!"
+
+docker-push-console:
+	@echo "=� Pushing console image to Docker Hub..."
+	docker push realmtrix/console:latest
+	@echo " Console image pushed!"
+
+docker-push-all: docker-push-broker docker-push-console
+	@echo " All images pushed to Docker Hub!"
+
+docker-restart:
+	@echo "=� Restarting all Docker services..."
+	docker-compose restart
+	@echo " Services restarted!"
+
+docker-ps:
+	@echo "=� Docker services status:"
+	docker-compose ps

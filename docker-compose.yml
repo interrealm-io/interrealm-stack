@@ -1,0 +1,87 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: realm-mesh-postgres
+    environment:
+      POSTGRES_DB: broker_db
+      POSTGRES_USER: broker_user
+      POSTGRES_PASSWORD: broker_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U broker_user -d broker_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - realm-mesh
+
+  # Broker Service
+  broker:
+    image: realmtrix/broker:latest
+    container_name: realm-mesh-broker
+    build:
+      context: ./broker/service
+      dockerfile: Dockerfile
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: broker_db
+      DB_USER: broker_user
+      DB_PASSWORD: broker_pass
+      DATABASE_URL: postgresql://broker_user:broker_pass@postgres:5432/broker_db
+
+      # Security
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-key-123}
+
+      # Ports
+      INTERNAL_PORT: 8080
+      EXTERNAL_PORT: 8443
+      ADMIN_PORT: 3001
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "8080:8080"   # Internal Gateway
+      - "8443:8443"   # External Gateway
+      - "3001:3001"   # Admin API
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - realm-mesh
+    restart: unless-stopped
+
+  # Console UI
+  console:
+    image: realmtrix/console:latest
+    container_name: realm-mesh-console
+    build:
+      context: ./broker/console
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:3001}
+        NEXT_PUBLIC_API_KEY: ${ADMIN_API_KEY:-admin-key-123}
+        NEXT_PUBLIC_ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-key-123}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "3000:3000"   # Console UI
+    depends_on:
+      - broker
+    networks:
+      - realm-mesh
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  realm-mesh:
+    driver: bridge
