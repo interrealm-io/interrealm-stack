@@ -34,8 +34,8 @@ export function AppShell() {
         {/* Header */}
         <header className="flex items-center justify-between border-b border-border bg-gray-900 px-6 py-4 text-white">
           <div>
-            <h1 className="text-2xl font-bold">InterRealm Console</h1>
-            <p className="mt-1 text-sm text-gray-400">Real-time broker monitoring</p>
+            <h1 className="text-2xl font-bold">Realm Mesh</h1>
+            <p className="mt-1 text-sm text-gray-400">Authentic-V1</p>
           </div>
           <div className="flex items-center gap-2">
             <button

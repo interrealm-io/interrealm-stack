@@ -3,7 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-const MatrixRain: React.FC = () => {
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+const ParticleNetwork: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -16,36 +23,73 @@ const MatrixRain: React.FC = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const matrix = 'INTERREALM01アイエーアール';
-    const matrixArray = matrix.split('');
+    // Create particles - fewer for better performance
+    const particleCount = 50;
+    const particles: Particle[] = [];
+    const maxDistance = 150; // Max distance to draw connecting lines
 
-    const fontSize = 14;
-    const columns = canvas.width / fontSize;
-
-    const drops: number[] = [];
-    for (let i = 0; i < columns; i++) {
-      drops[i] = Math.random() * -100;
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+      });
     }
 
     const draw = () => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#0084ff';
-      ctx.font = fontSize + 'px monospace';
+      // Draw connections
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)'; // blue-500 with low opacity
+      ctx.lineWidth = 1;
 
-      for (let i = 0; i < drops.length; i++) {
-        const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
+          if (distance < maxDistance) {
+            const opacity = (1 - distance / maxDistance) * 0.15;
+            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
         }
-        drops[i]++;
+      }
+
+      // Draw particles
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.6)'; // blue-500
+      for (const particle of particles) {
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Update particle positions
+      for (const particle of particles) {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+
+        // Bounce off edges
+        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+
+        // Keep particles within bounds
+        particle.x = Math.max(0, Math.min(canvas.width, particle.x));
+        particle.y = Math.max(0, Math.min(canvas.height, particle.y));
       }
     };
 
-    const interval = setInterval(draw, 35);
+    const animate = () => {
+      draw();
+      requestAnimationFrame(animate);
+    };
+
+    animate();
 
     const handleResize = () => {
       canvas.width = window.innerWidth;
@@ -55,7 +99,6 @@ const MatrixRain: React.FC = () => {
     window.addEventListener('resize', handleResize);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
@@ -114,26 +157,60 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-black overflow-hidden">
-      <MatrixRain />
+    <div className="relative min-h-screen flex items-center justify-center bg-slate-900 overflow-hidden">
+      <ParticleNetwork />
 
-      {/* Hero Branding */}
-      <div className="absolute top-8 left-8 z-20">
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+      {/* Top Left Branding */}
+      <div className="absolute top-8 left-8 z-20 flex items-center space-x-4">
+        <svg
+          className="w-12 h-12"
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* 3D Cube */}
+          <path
+            d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z"
+            fill="url(#cubeGradient)"
+            stroke="#06b6d4"
+            strokeWidth="2"
+          />
+          <path
+            d="M50 10 L50 50 L85 70 L85 30 Z"
+            fill="rgba(6, 182, 212, 0.3)"
+            stroke="#06b6d4"
+            strokeWidth="2"
+          />
+          <path
+            d="M50 10 L50 50 L15 70 L15 30 Z"
+            fill="rgba(20, 184, 166, 0.3)"
+            stroke="#14b8a6"
+            strokeWidth="2"
+          />
+          <path
+            d="M50 50 L85 70 L50 90 L15 70 Z"
+            fill="rgba(6, 182, 212, 0.5)"
+            stroke="#06b6d4"
+            strokeWidth="2"
+          />
+          <defs>
+            <linearGradient id="cubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#14b8a6" />
+              <stop offset="100%" stopColor="#06b6d4" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <h1 className="text-3xl font-bold text-white">
           InterRealm
         </h1>
-        <p className="text-2xl font-bold mt-1 ml-4 py-1 tracking-wider bg-gradient-to-r from-gray-100 via-white to-gray-300 bg-clip-text text-transparent">
-          Own Your Realm
-        </p>
       </div>
 
       {/* Login Box */}
-      <div className="relative z-10 w-full max-w-md px-6">
+      <div className="relative z-10 w-full max-w-lg px-6">
         <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <div className="mb-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-2">
-              RealmMesh Console
-            </h2>
+Realm Mesh          </h2>
             <p className="text-gray-400 text-sm">
               Enter your API key to access the control plane
             </p>
@@ -195,7 +272,7 @@ export default function LoginPage() {
       </div>
 
       {/* Bottom Tech Pattern */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black via-black/50 to-transparent z-10">
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent z-10">
         <div className="h-full flex items-end justify-center pb-4">
           <div className="flex space-x-8 text-xs text-gray-600">
             <span className="flex items-center">
