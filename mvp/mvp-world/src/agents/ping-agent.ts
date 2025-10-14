@@ -36,7 +36,7 @@ export class PingAgent {
   async startPinging(): Promise<void> {
     this.isRunning = true;
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] 🚀 Starting ping sequence (max: ${this.maxPings}, interval: ${this.pingInterval}ms)...`);
+    console.log(`[${timestamp}] 🚀 Starting infinite ping sequence (interval: ${this.pingInterval}ms)...`);
     await this.sendPing();
   }
 
@@ -47,11 +47,7 @@ export class PingAgent {
   }
 
   private async sendPing(): Promise<void> {
-    if (!this.isRunning || this.pingCount >= this.maxPings) {
-      if (this.pingCount >= this.maxPings) {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] 🏁 Max pings (${this.maxPings}) reached, stopping`);
-      }
+    if (!this.isRunning) {
       return;
     }
 

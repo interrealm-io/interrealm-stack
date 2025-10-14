@@ -34,7 +34,7 @@ export function AgentConfigDialog({
   onStart,
 }: AgentConfigDialogProps) {
   const [config, setConfig] = useState<AgentConfig>({
-    endpoint: "ws://localhost:3000/gateway",
+    endpoint: "ws://localhost:3001/gateway",
     pingApiKey: "",
     pongApiKey: "",
     realmId: "",
@@ -59,7 +59,7 @@ export function AgentConfigDialog({
             <Label htmlFor="endpoint">Gateway Endpoint</Label>
             <Input
               id="endpoint"
-              placeholder="ws://localhost:3000/gateway"
+              placeholder="ws://localhost:3001/gateway"
               value={config.endpoint}
               onChange={(e) =>
                 setConfig({ ...config, endpoint: e.target.value })

@@ -68,10 +68,19 @@ export class AuthClient {
 
       return this.jwtToken;
     } catch (error: any) {
+      console.error('Authentication error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        code: error.code,
+      });
+
       if (error.response) {
         throw new Error(`Authentication failed: ${error.response.data?.error || error.response.statusText}`);
       }
-      throw new Error(`Authentication failed: ${error.message}`);
+      throw new Error(`Authentication failed: ${error.message} (code: ${error.code || 'UNKNOWN'})`);
     }
   }
 

@@ -85,6 +85,11 @@ async function main() {
     await pingAgent.onInit(pingRealm);
     await pongAgent.onInit(pongRealm);
 
+    // Register agent instances to activate their @EventHandler decorators
+    console.log('📋 Registering event handlers...');
+    pingRealm.registerAgentInstance(pingAgent);
+    pongRealm.registerAgentInstance(pongAgent);
+
     console.log('\n✅ Both agents connected and ready!\n');
     console.log('===========================================');
     console.log('🏓 Starting ping-pong sequence...');

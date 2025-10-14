@@ -22,7 +22,7 @@ export class PingAgent {
   private realm!: Realm;
   private pingPublisher: any;
   private pingCount = 0;
-  private maxPings = 10;
+  private maxPings = Infinity; // Continue pinging indefinitely
 
   async onInit(realm: Realm): Promise<void> {
     this.realm = realm;

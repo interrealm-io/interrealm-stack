@@ -23,7 +23,17 @@ const httpServer: HttpServer = createServer(app);
 const gatewayManager = new GatewayManager(httpServer);
 
 // Middleware
-app.use(helmet());
+// TEMPORARILY DISABLE HELMET FOR RSV1 DEBUGGING
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+//       'connect-src': ["'self'", 'ws:', 'wss:'],
+//     },
+//   },
+//   // Disable hsts in development to avoid issues
+//   hsts: process.env.NODE_ENV === 'production',
+// }));
 app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

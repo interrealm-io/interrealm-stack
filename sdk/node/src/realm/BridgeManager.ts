@@ -30,6 +30,11 @@ export class BridgeManager extends EventEmitter {
   private pendingRequests: Map<string, { resolve: Function; reject: Function; timeout: NodeJS.Timeout }> = new Map();
   private capabilityManifest?: CapabilityManifest;
   private isAuthenticated = false;
+  private handshakeComplete = false;
+  private handshakeResolver?: { resolve: Function; reject: Function };
+  private keepAliveInterval?: NodeJS.Timeout;
+  private lastPongReceived: number = Date.now();
+  private connectionTimeoutHandle?: NodeJS.Timeout;
 
   constructor(private realm: Realm) {
     super();
@@ -71,45 +76,110 @@ export class BridgeManager extends EventEmitter {
     console.log('✓ Capability manifest built');
     console.log(CapabilityManifestBuilder.summarize(this.capabilityManifest));
 
-    // Phase 3: Connect to WebSocket gateway with JWT
+    // Phase 3: Connect to WebSocket gateway with JWT and wait for handshake
     return new Promise((resolve, reject) => {
       console.log('Phase 3: Connecting to gateway...');
+
+      // Store resolver for handshake completion
+      this.handshakeResolver = { resolve, reject };
 
       // Add JWT token as query parameter for WebSocket authentication
       const gatewayUrlWithAuth = `${config.gatewayUrl}?token=${this.jwtToken}`;
 
-      // Disable perMessageDeflate to avoid bufferUtil issues
+      // Disable perMessageDeflate and all extensions to avoid RSV1 issues
+      // CRITICAL: Do not request any extensions to prevent RSV1 errors
       this.ws = new WebSocket(gatewayUrlWithAuth, {
-        perMessageDeflate: false
+        perMessageDeflate: false,
+        maxPayload: 100 * 1024 * 1024 // 100MB
       });
 
-      const connectionTimeout = setTimeout(() => {
-        reject(new Error('WebSocket connection timeout'));
+      this.connectionTimeoutHandle = setTimeout(() => {
+        this.handshakeResolver = undefined;
+        reject(new Error('WebSocket connection and handshake timeout'));
         this.ws?.close();
       }, config.connectionTimeout || 15000);
 
       this.ws.on('open', () => {
-        clearTimeout(connectionTimeout);
         console.log('✓ Connected to gateway');
+        console.log('WebSocket client extensions:', (this.ws as any).extensions);
+        console.log('WebSocket client compression enabled:', (this.ws as any)._isServer ? 'server' : 'client');
+
+        // Advanced RSV1 protection: Force disable compression internals
+        // Override _receiver to validate frames don't have RSV1 bit set
+        const receiver = (this.ws as any)._receiver;
+        if (receiver) {
+          const originalOnData = receiver.onData;
+          receiver.onData = function(data: Buffer) {
+            // Check if RSV1 bit is set in the frame (bit 6 of first byte)
+            if (data.length > 0 && (data[0] & 0x40) !== 0) {
+              console.error('Blocked frame with RSV1 bit set (compressed frame)');
+              return;
+            }
+            return originalOnData.call(this, data);
+          };
+        }
+
+        // Override send to force compression off
+        const originalSend = this.ws!.send.bind(this.ws);
+        this.ws!.send = function(data: any, options?: any, callback?: any) {
+          const safeOptions = {
+            ...options,
+            compress: false,
+            fin: true
+          };
+          return originalSend(data, safeOptions, callback);
+        };
+
+        // Start keep-alive mechanism
+        this.startKeepAlive();
+
+        console.log('Sending member handshake...');
         this.sendMemberHandshake();
-        resolve();
+        // NOTE: Do NOT resolve here - wait for handshake-ack
       });
 
       this.ws.on('message', (data: WebSocket.Data) => {
         this.handleMessage(data.toString());
       });
 
+      // Handle ping from server
+      this.ws.on('ping', () => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.pong();
+          this.lastPongReceived = Date.now();
+        }
+      });
+
+      // Handle pong responses from server
+      this.ws.on('pong', () => {
+        this.lastPongReceived = Date.now();
+      });
+
       this.ws.on('error', (error) => {
-        clearTimeout(connectionTimeout);
+        if (this.connectionTimeoutHandle) {
+          clearTimeout(this.connectionTimeoutHandle);
+          this.connectionTimeoutHandle = undefined;
+        }
         console.error('✗ WebSocket error:', error);
         this.isAuthenticated = false;
-        reject(error);
+        this.handshakeComplete = false;
+        this.stopKeepAlive();
+        if (this.handshakeResolver) {
+          this.handshakeResolver.reject(error);
+          this.handshakeResolver = undefined;
+        }
       });
 
       this.ws.on('close', () => {
         console.log('Disconnected from gateway');
         this.isAuthenticated = false;
+        this.handshakeComplete = false;
+        this.stopKeepAlive();
         this.emit('disconnected');
+        if (this.handshakeResolver) {
+          this.handshakeResolver.reject(new Error('WebSocket closed before handshake completed'));
+          this.handshakeResolver = undefined;
+        }
       });
     });
   }
@@ -188,6 +258,12 @@ export class BridgeManager extends EventEmitter {
     if (error) {
       console.error('✗ Member handshake failed:', error);
       this.emit('handshake-failed', { error });
+
+      // Reject the connect promise if handshake fails
+      if (this.handshakeResolver) {
+        this.handshakeResolver.reject(new Error(`Handshake failed: ${error}`));
+        this.handshakeResolver = undefined;
+      }
       return;
     }
 
@@ -197,6 +273,15 @@ export class BridgeManager extends EventEmitter {
     console.log(`  Available services: ${Object.keys(directory?.availableServices || {}).length}`);
     console.log(`  Available capabilities: ${directory?.availableCapabilities?.length || 0}`);
 
+    // Mark handshake as complete
+    this.handshakeComplete = true;
+
+    // CRITICAL: Clear connection timeout now that handshake is complete
+    if (this.connectionTimeoutHandle) {
+      clearTimeout(this.connectionTimeoutHandle);
+      this.connectionTimeoutHandle = undefined;
+    }
+
     this.emit('handshake-complete', {
       memberId,
       status,
@@ -205,6 +290,12 @@ export class BridgeManager extends EventEmitter {
     });
 
     this.emit('ready');
+
+    // NOW resolve the connect promise - connection is fully ready
+    if (this.handshakeResolver) {
+      this.handshakeResolver.resolve();
+      this.handshakeResolver = undefined;
+    }
   }
 
   /**
@@ -561,18 +652,69 @@ export class BridgeManager extends EventEmitter {
   }
 
   send(message: any): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-    } else {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error('WebSocket not connected');
+      return;
+    }
+
+    // Allow member-handshake to be sent before handshake completion
+    // All other messages should wait until handshake is complete
+    if (!this.handshakeComplete && message.type !== 'member-handshake') {
+      console.warn(`⚠️  Attempted to send ${message.type} before handshake complete - message blocked`);
+      return;
+    }
+
+    try {
+      // Explicitly disable compression on send to prevent RSV1 errors
+      this.ws.send(JSON.stringify(message), { compress: false }, (error) => {
+        if (error) {
+          console.error('WebSocket send error:', error);
+        }
+      });
+    } catch (error) {
+      console.error('WebSocket send exception:', error);
+    }
+  }
+
+  /**
+   * Start keep-alive mechanism to prevent connection timeouts
+   * Sends ping every 10 seconds and monitors for pong responses
+   */
+  private startKeepAlive(): void {
+    this.lastPongReceived = Date.now();
+
+    this.keepAliveInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // Send ping to keep connection alive
+        this.ws.ping();
+
+        // Check if we haven't received a pong in 30 seconds
+        const timeSinceLastPong = Date.now() - this.lastPongReceived;
+        if (timeSinceLastPong > 30000) {
+          console.warn('⚠️  No pong received in 30 seconds, connection may be dead');
+        }
+      }
+    }, 10000); // Send ping every 10 seconds
+  }
+
+  /**
+   * Stop keep-alive mechanism
+   */
+  private stopKeepAlive(): void {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = undefined;
     }
   }
 
   async disconnect(): Promise<void> {
+    this.stopKeepAlive();
     if (this.ws) {
       this.ws.close();
       this.ws = undefined;
     }
+    this.handshakeComplete = false;
+    this.handshakeResolver = undefined;
   }
 
   private generateRequestId(): string {

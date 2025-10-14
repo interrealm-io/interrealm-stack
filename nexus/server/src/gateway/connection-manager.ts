@@ -59,8 +59,16 @@ export class ConnectionManager {
   send(memberId: string, message: any): boolean {
     const connection = this.connections.get(memberId);
     if (connection && connection.ws.readyState === WebSocket.OPEN) {
-      connection.ws.send(JSON.stringify(message));
-      return true;
+      const data = JSON.stringify(message);
+      logger.debug(`Sending to ${memberId}: ${data.substring(0, 100)}...`);
+      try {
+        // Explicitly disable compression to prevent RSV1 issues
+        connection.ws.send(data, { compress: false });
+        return true;
+      } catch (error) {
+        logger.error(`Error sending to ${memberId}:`, error);
+        return false;
+      }
     }
     return false;
   }
@@ -69,7 +77,7 @@ export class ConnectionManager {
     const exclude = new Set(excludeMemberIds || []);
     for (const [memberId, connection] of this.connections) {
       if (!exclude.has(memberId) && connection.ws.readyState === WebSocket.OPEN) {
-        connection.ws.send(JSON.stringify(message));
+        connection.ws.send(JSON.stringify(message), { compress: false });
       }
     }
   }
@@ -78,7 +86,7 @@ export class ConnectionManager {
     const exclude = new Set(excludeMemberIds || []);
     for (const connection of this.getConnectionsByRealm(realmId)) {
       if (!exclude.has(connection.memberId) && connection.ws.readyState === WebSocket.OPEN) {
-        connection.ws.send(JSON.stringify(message));
+        connection.ws.send(JSON.stringify(message), { compress: false });
       }
     }
   }

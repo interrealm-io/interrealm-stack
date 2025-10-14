@@ -38,14 +38,73 @@ export class GatewayManager {
 
   async start(): Promise<void> {
     // Main gateway WebSocket server
+    // Use noServer: true to manually handle upgrades with full control
     this.wss = new WebSocketServer({
-      server: this.httpServer,
-      path: '/gateway',
-      perMessageDeflate: false // Disable compression to avoid bufferUtil issues
+      noServer: true,
+      perMessageDeflate: false, // Disable per-message compression
+      clientTracking: true
+    });
+
+    // Manually handle WebSocket upgrades to prevent ANY compression negotiation
+    this.httpServer.on('upgrade', (request, socket, head) => {
+      const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
+
+      if (pathname === '/gateway') {
+        // Force remove any compression extension headers from client request
+        if (request.headers['sec-websocket-extensions']) {
+          delete request.headers['sec-websocket-extensions'];
+        }
+
+        this.wss!.handleUpgrade(request, socket, head, (ws) => {
+          this.wss!.emit('connection', ws, request);
+        });
+      } else if (pathname === '/monitor') {
+        // Monitor path handled below
+        if (request.headers['sec-websocket-extensions']) {
+          delete request.headers['sec-websocket-extensions'];
+        }
+
+        this.monitorWss!.handleUpgrade(request, socket, head, (ws) => {
+          this.monitorWss!.emit('connection', ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
     });
 
     this.wss.on('connection', async (ws: WebSocket, req) => {
       try {
+        // Log WebSocket handshake headers for debugging
+        logger.debug('WebSocket handshake headers:', req.headers);
+        logger.debug('WebSocket extensions:', (ws as any).extensions);
+
+        // Advanced RSV1 protection: Force disable compression internals
+        // Override _receiver to validate frames don't have RSV1 bit set
+        const receiver = (ws as any)._receiver;
+        if (receiver) {
+          const originalOnData = receiver.onData;
+          receiver.onData = function(data: Buffer) {
+            // Check if RSV1 bit is set in the frame (bit 6 of first byte)
+            if (data.length > 0 && (data[0] & 0x40) !== 0) {
+              logger.error('Blocked frame with RSV1 bit set (compressed frame)');
+              ws.close(1002, 'Protocol error: unexpected compressed frame');
+              return;
+            }
+            return originalOnData.call(this, data);
+          };
+        }
+
+        // Override send to force compression off
+        const originalSend = ws.send.bind(ws);
+        ws.send = function(data: any, options?: any, callback?: any) {
+          const safeOptions = {
+            ...options,
+            compress: false,
+            fin: true
+          };
+          return originalSend(data, safeOptions, callback);
+        };
+
         // Extract JWT token from query string
         const url = parseUrl(req.url || '', true);
         const token = url.query.token as string;
@@ -67,18 +126,34 @@ export class GatewayManager {
         // Add connection
         await this.connectionManager.addConnection(memberId, ws, { realmId });
 
+        // Start keep-alive mechanism - send ping every 10 seconds
+        const keepAliveInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.ping();
+          } else {
+            clearInterval(keepAliveInterval);
+          }
+        }, 10000);
+
+        // Handle pong responses from client
+        ws.on('pong', () => {
+          logger.debug(`Keep-alive pong received from ${memberId}`);
+        });
+
         // Setup message handler
         ws.on('message', async (data: Buffer) => {
           await this.handleMessage(memberId, data.toString());
         });
 
         ws.on('close', async () => {
+          clearInterval(keepAliveInterval);
           logger.info(`Member disconnected: ${memberId}`);
           this.activityMonitor.logDisconnection(memberId);
           await this.connectionManager.removeConnection(memberId);
         });
 
         ws.on('error', (error) => {
+          clearInterval(keepAliveInterval);
           logger.error(`WebSocket error for ${memberId}:`, error);
           this.activityMonitor.logError(memberId, `WebSocket error: ${error.message}`);
         });
@@ -92,8 +167,7 @@ export class GatewayManager {
 
     // Activity monitor WebSocket server (no auth required for debugging)
     this.monitorWss = new WebSocketServer({
-      server: this.httpServer,
-      path: '/monitor',
+      noServer: true,
       perMessageDeflate: false // Disable compression to avoid bufferUtil issues
     });
 

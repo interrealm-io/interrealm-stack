@@ -17,7 +17,8 @@ async function bootstrap() {
       }
     });
 
-    httpServer.listen(PORT, () => {
+    // Bind to 127.0.0.1 instead of 0.0.0.0 to avoid macOS firewall issues
+    httpServer.listen(PORT, '127.0.0.1', () => {
       logger.info(`InterRealm Nexus started on port ${PORT}`);
       logger.info(`WebSocket gateway available at ws://localhost:${PORT}/gateway`);
       logger.info(`Environment: ${config.nodeEnv}`);

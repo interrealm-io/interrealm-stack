@@ -77,6 +77,37 @@ export class Realm extends EventEmitter {
     this.emit('shutdown');
   }
 
+  /**
+   * Register an agent instance and set up its event handlers
+   * This is useful when not using autoDiscovery
+   */
+  registerAgentInstance(agentInstance: any): void {
+    const { getEventHandlers } = require('../decorators/EventHandler');
+    const handlers = getEventHandlers(agentInstance.constructor);
+
+    for (const handler of handlers) {
+      const { capability, eventName, topic, filters, methodName } = handler;
+
+      if (!methodName) continue;
+
+      // Subscribe to the event via EventBus
+      this.eventBus.subscribe({
+        capability,
+        eventName,
+        topic,
+        filters,
+        handler: async (payload: any) => {
+          const method = agentInstance[methodName];
+          if (typeof method === 'function') {
+            await method.call(agentInstance, payload);
+          }
+        }
+      });
+
+      console.log(`Registered event handler: ${capability}.${eventName} on ${topic} -> ${methodName}`);
+    }
+  }
+
   getServiceRegistry(): ServiceRegistry { return this.serviceRegistry; }
   getAgentRegistry(): AgentRegistry { return this.agentRegistry; }
   getEventBus(): EventBus { return this.eventBus; }

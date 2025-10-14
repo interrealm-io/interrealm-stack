@@ -19,8 +19,8 @@ async function main() {
 
   // Configuration
   const REALM_ID = 'test.ping-pong-realm';
-  const SERVER_URL = 'http://localhost:3000';
-  const GATEWAY_URL = 'ws://localhost:3000/gateway';
+  const SERVER_URL = 'http://localhost:3001';
+  const GATEWAY_URL = 'ws://localhost:3001/gateway';
 
   // Member 1: Ping Agent
   const pingRealm = new Realm({

@@ -2,8 +2,8 @@
   "name": "@interrealm/nexus-shared",
   "version": "1.0.0",
   "description": "Shared types and utilities for InterRealm Nexus Console and Server",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
