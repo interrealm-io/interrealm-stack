@@ -1,7 +1,34 @@
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 export function generateId(): string {
   return uuidv4();
+}
+
+/**
+ * Generate a secure API key
+ * Format: rm_<random_string>
+ */
+export function generateApiKey(): string {
+  const randomBytes = crypto.randomBytes(32);
+  const key = randomBytes.toString('base64url');
+  return `rm_${key}`;
+}
+
+/**
+ * Hash an API key for storage
+ */
+export async function hashApiKey(apiKey: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(apiKey, salt);
+}
+
+/**
+ * Verify an API key against a hash
+ */
+export async function verifyApiKey(apiKey: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(apiKey, hash);
 }
 
 export function generateRequestId(): string {

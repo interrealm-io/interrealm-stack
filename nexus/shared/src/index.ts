@@ -12,3 +12,4 @@ export * from './schemas/realm.schemas';
 
 // Export all DTOs
 export * from './dto/realm.dto';
+export * from './dto/member.dto';

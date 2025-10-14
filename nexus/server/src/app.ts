@@ -3,11 +3,12 @@ import helmet from 'helmet';
 import { logger } from './config/logger';
 import { errorMiddleware } from './middleware/error.middleware';
 import { corsMiddleware } from './middleware/cors.middleware';
+import { consoleAuthMiddleware } from './middleware/auth.middleware';
 import authRouter from './controllers/auth.controller';
+import realmRouter from './controllers/realm.controller';
+import memberRouter from './controllers/member.controller';
 
-// TODO: Import routers when implemented
-// import realmRouter from './controllers/realm.controller';
-// import memberRouter from './controllers/member.controller';
+// TODO: Import additional routers when implemented
 // import bridgeRouter from './controllers/bridge.controller';
 // import policyRouter from './controllers/policy.controller';
 // import capabilityRouter from './controllers/capability.controller';
@@ -38,9 +39,11 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRouter);
 
+// Console-authenticated routes (require CONSOLE_API_KEY)
+app.use('/api/realms', consoleAuthMiddleware, realmRouter);
+app.use('/api/members', consoleAuthMiddleware, memberRouter);
+
 // TODO: Add routes when controllers are implemented
-// app.use('/api/realms', realmRouter);
-// app.use('/api/members', memberRouter);
 // app.use('/api/bridges', bridgeRouter);
 // app.use('/api/policies', policyRouter);
 // app.use('/api/capabilities', capabilityRouter);
