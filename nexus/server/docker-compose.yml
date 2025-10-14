@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  nexus-postgres:
+    image: postgres:14-alpine
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_DB: nexus
+      POSTGRES_USER: nexus_user
+      POSTGRES_PASSWORD: nexus_pass
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+    ports:
+      - "5434:5432"  # Using 5434 to avoid conflict with broker DB (5433) and default postgres (5432)
+    volumes:
+      - nexus-postgres-data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_user -d nexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nexus-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: nexus-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5052:80"  # Using 5052 to avoid conflict with broker pgadmin (5051)
+    networks:
+      - nexus-network
+    depends_on:
+      - nexus-postgres
+    volumes:
+      - nexus-pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  nexus-postgres-data:
+    driver: local
+  nexus-pgadmin-data:
+    driver: local
+
+networks:
+  nexus-network:
+    driver: bridge

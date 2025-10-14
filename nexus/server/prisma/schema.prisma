@@ -19,37 +19,37 @@ model Realm {
   realmId        String   @unique @map("realm_id") @db.VarChar(255)
   parentId       String?  @map("parent_id") @db.Uuid
   displayName    String?  @map("display_name") @db.VarChar(255)
-  
+
   realmType      String   @default("service") @map("realm_type") @db.VarChar(50)
-  // root, organization, tenant, department, team, user, service, environment, 
+  // root, organization, tenant, department, team, user, service, environment,
   // class, project, marketplace, family
-  
+
   description    String?  @db.Text
-  
+
   // Contract reference (composite contract for this realm)
   contractName    String?  @map("contract_name") @db.VarChar(255)
   contractVersion String?  @map("contract_version") @db.VarChar(50)
-  
+
   // Policies
   policies        Json     @default("[]") @db.JsonB
   // Array of policy names: ["rate-limit-default", "capability-access-finance"]
-  
+
   inheritPolicies Boolean  @default(true) @map("inherit_policies")
-  
+
   // Native agents (pre-installed for this realm type)
   nativeAgents    Json     @default("[]") @map("native_agents") @db.JsonB
   // Example: [{ "agentName": "personal-assistant", "contractName": "agent.assistant" }]
-  
+
   // Kubernetes resources (for realms that need k8s operators)
   k8sResources    Json?    @map("k8s_resources") @db.JsonB
   // Example: { "operator": "realm-operator", "namespace": "tenant-acme" }
-  
+
   // Extensions (alternative to metadata)
   extensions      Json     @default("[]") @db.JsonB
   // Array of extension configs
-  
+
   metadata        Json     @default("{}") @db.JsonB
-  
+
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -83,23 +83,23 @@ model RealmSnapshot {
   id              String   @id @default(uuid()) @db.Uuid
   realmId         String   @map("realm_id") @db.Uuid
   version         String   @db.VarChar(50) // Semantic version: 2.6.0, 3.0.0
-  
+
   // Full snapshot as structured data
   snapshot        Json     @db.JsonB
   // Complete realm configuration including members, bridges, policies, etc.
-  
+
   // Delta from previous version
   previousVersion String?  @map("previous_version") @db.VarChar(50)
   delta           Json?    @db.JsonB
-  
+
   breakingChanges Json     @default("[]") @db.JsonB
   changeNotes     String?  @map("change_notes") @db.Text
-  
+
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   createdBy       String?  @map("created_by") @db.VarChar(255)
-  
+
   realm           Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  
+
   @@unique([realmId, version])
   @@index([realmId, createdAt], name: "idx_realm_snapshots_realm_time")
   @@map("realm_snapshots")
@@ -111,17 +111,17 @@ model RealmSnapshot {
 model Policy {
   name        String   @id @db.VarChar(100)
   description String?  @db.Text
-  
+
   type        String   @db.VarChar(50)
-  // capability-access, rate-limit, audit, authentication, authorization, 
+  // capability-access, rate-limit, audit, authentication, authorization,
   // data-governance, custom
-  
+
   config      Json     @db.JsonB
   // Policy-specific configuration (structure depends on type)
-  
+
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  
+
   @@index([type], name: "idx_policies_type")
   @@map("policies")
 }
@@ -133,26 +133,26 @@ model Capability {
   id              String   @id @default(uuid()) @db.Uuid
   name            String   @db.VarChar(255)
   version         String   @db.VarChar(50)
-  
+
   // Full capability definition (from capability.yaml)
   definition      Json     @db.JsonB
-  
+
   // Extracted for querying
   services        String[] @default([])
   events          String[] @default([])
   loops           String[] @default([])
   loopStacks      String[] @default([]) @map("loop_stacks")
-  
+
   // Metadata
   description     String?  @db.Text
   author          String?  @db.VarChar(255)
   tags            String[] @default([])
   stability       String   @default("stable") @db.VarChar(50)
   documentation   String?  @db.VarChar(500)
-  
+
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  
+
   @@unique([name, version])
   @@index([name], name: "idx_capabilities_name")
   @@index([stability], name: "idx_capabilities_stability")
@@ -166,31 +166,31 @@ model Member {
   id            String    @id @db.VarChar(255)
   name          String    @db.VarChar(255)
   realmId       String    @map("realm_id") @db.Uuid
-  
+
   memberType    String    @map("member_type") @db.VarChar(50)
   // consumer, provider, agent-runtime, hybrid
-  
+
   // Contract reference
   contractName    String?   @map("contract_name") @db.VarChar(255)
   contractVersion String?   @map("contract_version") @db.VarChar(50)
-  
+
   // Authentication
   authType      String    @default("api-key") @map("auth_type") @db.VarChar(50)
   // api-key, oauth2, jwt, mtls, saml, custom
-  
+
   authConfig    Json      @db.JsonB
   // Auth-specific configuration based on authType
-  
+
   // Connection state
   connectionId  String?   @map("connection_id") @db.VarChar(255)
   status        String    @default("offline") @db.VarChar(50)
   // online, offline, away
-  
+
   lastConnected DateTime? @map("last_connected") @db.Timestamp(6)
-  
+
   // Metadata for extensions, integrations, custom config
   metadata      Json      @default("{}") @db.JsonB
-  
+
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -215,13 +215,13 @@ model MemberAgent {
   id             String   @id @default(uuid()) @db.Uuid
   memberId       String   @map("member_id") @db.VarChar(255)
   agentName      String   @map("agent_name") @db.VarChar(255)
-  
+
   participatesIn String[] @map("participates_in")
   // Loop names this agent participates in
-  
+
   skills         String[]
   // Skills this agent has
-  
+
   metadata       Json     @default("{}") @db.JsonB
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
@@ -239,17 +239,17 @@ model MemberAgent {
 model Route {
   id              String   @id @default(uuid()) @db.Uuid
   routePattern    String   @map("route_pattern") @db.VarChar(500)
-  
+
   // Capability-based routing
   capability      String   @db.VarChar(255)
   operation       String?  @db.VarChar(100)
-  
+
   targetRealmId   String   @map("target_realm_id") @db.Uuid
   targetMemberId  String?  @map("target_member_id") @db.VarChar(255)
-  
+
   priority        Int      @default(0)
   active          Boolean  @default(true)
-  
+
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -268,54 +268,54 @@ model Route {
 model Bridge {
   id                     String    @id @default(uuid()) @db.Uuid
   name                   String    @db.VarChar(255)
-  
+
   // Bridge belongs to a realm
   realmId                String    @map("realm_id") @db.Uuid
-  
+
   // Pluggable connection type
   connectionType         String    @default("websocket") @map("connection_type") @db.VarChar(50)
   // websocket, grpc, http, mqtt, kafka, custom
-  
+
   remoteGatewayUrl       String    @map("remote_gateway_url") @db.VarChar(500)
   bridgeKey              String    @map("bridge_key") @db.VarChar(512)
-  
+
   // Connection-specific configuration
   connectionConfig       Json      @default("{}") @map("connection_config") @db.JsonB
   // Example for grpc: { "tls": true, "cert": "...", "compression": "gzip" }
   // Example for kafka: { "topic": "realm-bridge", "consumerGroup": "bridge-01" }
-  
+
   // Local side contract
   localContractName      String    @map("local_contract_name") @db.VarChar(255)
   localContractVersion   String    @map("local_contract_version") @db.VarChar(50)
   localProvides          Json      @map("local_provides") @db.JsonB
   // Array of { capability, providedBy }
-  
+
   localRequires          Json      @map("local_requires") @db.JsonB
   // Array of { capability, version? }
-  
+
   // Remote side contract (captured from handshake)
   remoteContractName     String?   @map("remote_contract_name") @db.VarChar(255)
   remoteContractVersion  String?   @map("remote_contract_version") @db.VarChar(50)
   remoteProvides         Json?     @map("remote_provides") @db.JsonB
   remoteRequires         Json?     @map("remote_requires") @db.JsonB
-  
+
   // Compatibility state
   compatible             Boolean   @default(false)
   compatibilityErrors    Json      @default("[]") @map("compatibility_errors") @db.JsonB
   compatibilityWarnings  Json      @default("[]") @map("compatibility_warnings") @db.JsonB
   lastNegotiated         DateTime? @map("last_negotiated") @db.Timestamp(6)
-  
+
   // Routing
   routeToRealmId         String    @map("route_to_realm_id") @db.Uuid
-  
+
   active                 Boolean   @default(true)
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  
+
   realm                  Realm     @relation("RealmBridges", fields: [realmId], references: [id], onDelete: Cascade)
   routeToRealm           Realm     @relation("BridgeRouteTarget", fields: [routeToRealmId], references: [id])
   history                BridgeContractHistory[]
-  
+
   @@unique([realmId, name])
   @@index([realmId], name: "idx_bridges_realm")
   @@index([connectionType], name: "idx_bridges_connection_type")
@@ -330,18 +330,18 @@ model Bridge {
 model BridgeContractHistory {
   id                    String   @id @default(uuid()) @db.Uuid
   bridgeId              String   @map("bridge_id") @db.Uuid
-  
+
   localContractVersion  String   @map("local_contract_version") @db.VarChar(50)
   remoteContractVersion String   @map("remote_contract_version") @db.VarChar(50)
-  
+
   changeType            String   @map("change_type") @db.VarChar(50)
   // established, local-minor, local-major, remote-minor, remote-major, broken
-  
+
   compatible            Boolean
   negotiatedAt          DateTime @map("negotiated_at") @db.Timestamp(6)
-  
+
   bridge                Bridge   @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
-  
+
   @@index([bridgeId, negotiatedAt], name: "idx_bridge_history")
   @@map("bridge_contract_history")
 }
@@ -352,13 +352,13 @@ model BridgeContractHistory {
 model Connection {
   id             String   @id @db.VarChar(255)
   realmId        String   @map("realm_id") @db.Uuid
-  
+
   connectionType String   @default("websocket") @map("connection_type") @db.VarChar(50)
   gatewayType    String   @default("internal") @map("gateway_type") @db.VarChar(50)
-  
+
   connectedAt    DateTime @default(now()) @map("connected_at") @db.Timestamp(6)
   lastActivity   DateTime @default(now()) @map("last_activity") @db.Timestamp(6)
-  
+
   metadata       Json     @default("{}") @db.JsonB
 
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
@@ -375,7 +375,7 @@ model RealmEvent {
   eventTopic String   @map("event_topic") @db.VarChar(255)
   eventType  String   @map("event_type") @db.VarChar(50)
   // publisher, subscriber
-  
+
   metadata   Json     @default("{}") @db.JsonB
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
@@ -393,25 +393,25 @@ model RealmEvent {
 model LoopState {
   id                  String    @id @db.VarChar(255)
   loopName            String    @map("loop_name") @db.VarChar(255)
-  
+
   // Realm scope for this loop
   realmScope          String?   @map("realm_scope") @db.VarChar(255)
   // Example: "tenant:acme-corp/user:john" - only agents in this realm tree can participate
-  
+
   capability          String?   @db.VarChar(255)
   initiatorMemberId   String?   @map("initiator_member_id") @db.VarChar(255)
-  
+
   phase               String    @default("recruitment") @db.VarChar(50)
   // recruitment, execution, aggregation, complete, failed
-  
+
   input               Json?     @db.JsonB
   result              Json?     @db.JsonB
-  
+
   recruitmentTimeout  Int?      @map("recruitment_timeout")
   executionTimeout    Int?      @map("execution_timeout")
   minParticipants     Int?      @map("min_participants")
   maxParticipants     Int?      @map("max_participants")
-  
+
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
   completedAt         DateTime? @map("completed_at") @db.Timestamp(6)
@@ -435,14 +435,14 @@ model LoopParticipant {
   agentName           String    @map("agent_name") @db.VarChar(255)
   participantId       String    @map("participant_id") @db.VarChar(512)
   // Composite: memberId.agentName
-  
+
   status              String    @default("recruited") @db.VarChar(50)
   // recruited, executing, complete, failed
-  
+
   joinedAt            DateTime  @default(now()) @map("joined_at") @db.Timestamp(6)
   startedExecutionAt  DateTime? @map("started_execution_at") @db.Timestamp(6)
   completedAt         DateTime? @map("completed_at") @db.Timestamp(6)
-  
+
   result              Json?     @db.JsonB
   error               String?   @db.Text
 
@@ -481,24 +481,24 @@ model EventSubscription {
 model AuditLog {
   id             String    @id @default(uuid()) @db.Uuid
   timestamp      DateTime  @default(now()) @db.Timestamp(6)
-  
+
   sourceRealmId  String?   @map("source_realm_id") @db.Uuid
   targetRealmId  String?   @map("target_realm_id") @db.Uuid
-  
+
   fromRealm      String?   @map("from_realm") @db.VarChar(255)
   toRealm        String?   @map("to_realm") @db.VarChar(255)
-  
+
   messageType    String?   @map("message_type") @db.VarChar(100)
   operation      String?   @db.VarChar(100)
   capability     String?   @db.VarChar(255)
   service        String?   @db.VarChar(255)
-  
+
   payloadSize    Int?      @map("payload_size")
   status         String?   @db.VarChar(50)
   success        Boolean?
   latencyMs      Int?      @map("latency_ms")
   errorMessage   String?   @map("error_message") @db.Text
-  
+
   metadata       Json      @default("{}") @db.JsonB
 
   sourceRealm Realm? @relation("AuditSourceRealm", fields: [sourceRealmId], references: [id], onDelete: SetNull)

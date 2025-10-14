@@ -1,0 +1,1095 @@
+# mesh-config.schema.yaml
+# Schema for defining a complete InterRealm Mesh configuration
+# Includes contracts, policies, realms, bridges, and members
+
+name: MeshConfigurationSchema
+version: 1.0.0
+description: |
+  Schema for defining a complete InterRealm Mesh configuration including
+  contracts, policies, realms, bridges, and members. This represents the
+  entire state of a mesh instance and can be versioned, imported, and exported.
+
+schema:
+  $schema: "http://json-schema.org/draft-07/schema#"
+  $id: "https://interrealm.io/schemas/mesh-config/v1alpha1"
+  type: object
+  required:
+    - apiVersion
+    - kind
+    - metadata
+    - spec
+
+  properties:
+    # ============================================
+    # Standard Headers
+    # ============================================
+    apiVersion:
+      type: string
+      const: "interrealm.io/v1alpha1"
+      description: "API version for mesh configuration"
+
+    kind:
+      type: string
+      const: "MeshConfiguration"
+      description: "Resource kind"
+
+    metadata:
+      type: object
+      required:
+        - meshId
+        - version
+      properties:
+        meshId:
+          type: string
+          description: "Unique identifier for this mesh instance"
+          examples:
+            - "prod-main-mesh"
+            - "staging-mesh-01"
+
+        version:
+          type: string
+          pattern: "^\\d+\\.\\d+\\.\\d+$"
+          description: "Semantic version of this mesh configuration"
+          examples:
+            - "3.0.0"
+
+        description:
+          type: string
+          description: "Human-readable description"
+          examples:
+            - "Production InterRealm Mesh"
+
+        author:
+          type: string
+          description: "Author or team"
+          examples:
+            - "Platform Team"
+
+        tags:
+          type: array
+          items:
+            type: string
+          description: "Tags for categorization"
+          examples:
+            - ["production", "main", "us-east"]
+
+        previousVersion:
+          type: string
+          pattern: "^\\d+\\.\\d+\\.\\d+$"
+          description: "Previous version for delta tracking"
+          examples:
+            - "2.6.0"
+
+        breakingChanges:
+          type: array
+          items:
+            type: string
+          description: "List of breaking changes from previous version"
+          examples:
+            - ["Removed legacy auth support", "Changed policy inheritance model"]
+
+    # ============================================
+    # Mesh Specification
+    # ============================================
+    spec:
+      type: object
+      required:
+        - gatewayUrl
+      properties:
+
+        # ============================================
+        # Gateway Configuration
+        # ============================================
+        gatewayUrl:
+          type: string
+          format: uri
+          description: "WebSocket URL for this gateway"
+          examples:
+            - "wss://gateway.example.com"
+            - "wss://gateway.example.com:8443"
+
+        # ============================================
+        # Capability Imports
+        # ============================================
+        capabilities:
+          type: array
+          description: "External capability definitions to import"
+          items:
+            type: object
+            required:
+              - import
+            properties:
+              import:
+                type: string
+                description: "Path to capability YAML file"
+                examples:
+                  - "./capabilities/pharmacy.yaml"
+                  - "https://capabilities.example.com/messaging/v2.1.0.yaml"
+
+        # ============================================
+        # Policy Definitions
+        # ============================================
+        policies:
+          type: array
+          description: "Policy definitions for this mesh"
+          items:
+            type: object
+            required:
+              - name
+              - type
+            properties:
+              name:
+                type: string
+                description: "Policy name (unique within mesh)"
+                examples:
+                  - "rate-limit-default"
+                  - "capability-access-finance"
+
+              description:
+                type: string
+                description: "Policy description"
+                examples:
+                  - "Default rate limiting policy"
+
+              type:
+                type: string
+                enum: 
+                  - capability-access
+                  - rate-limit
+                  - audit
+                  - authentication
+                  - authorization
+                  - data-governance
+                  - custom
+                description: "Policy type"
+
+              config:
+                type: object
+                description: "Policy configuration (structure depends on type)"
+                oneOf:
+                  - $ref: "#/definitions/CapabilityAccessPolicy"
+                  - $ref: "#/definitions/RateLimitPolicy"
+                  - $ref: "#/definitions/AuditPolicy"
+                  - $ref: "#/definitions/AuthenticationPolicy"
+                  - $ref: "#/definitions/AuthorizationPolicy"
+                  - $ref: "#/definitions/DataGovernancePolicy"
+                  - $ref: "#/definitions/CustomPolicy"
+
+        # ============================================
+        # Realm Tree
+        # ============================================
+        realms:
+          type: array
+          description: "Root-level realms (recursive tree structure)"
+          items:
+            $ref: "#/definitions/Realm"
+
+        # ============================================
+        # Load Balancing Configuration
+        # ============================================
+        loadBalancing:
+          type: object
+          description: "Global load balancing configuration"
+          properties:
+            strategy:
+              type: string
+              enum: [round-robin, random, least-connections, hash-based]
+              default: round-robin
+              description: "Load balancing strategy"
+
+            healthCheck:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  default: true
+                
+                interval:
+                  type: string
+                  default: "30s"
+                  description: "Health check interval"
+                
+                timeout:
+                  type: string
+                  default: "5s"
+                  description: "Health check timeout"
+
+  # ============================================
+  # Type Definitions
+  # ============================================
+  definitions:
+
+    # ============================================
+    # Realm Definition (Recursive)
+    # ============================================
+    Realm:
+      type: object
+      required:
+        - realmId
+      properties:
+        realmId:
+          type: string
+          description: "Unique realm identifier"
+          examples:
+            - "root"
+            - "production"
+            - "finance"
+
+        displayName:
+          type: string
+          description: "Human-readable name"
+          examples:
+            - "Production Environment"
+            - "Finance Department"
+
+        realmType:
+          type: string
+          enum: [root, service, tenant, environment, department]
+          default: service
+          description: "Type of realm"
+
+        description:
+          type: string
+          description: "Realm description"
+          examples:
+            - "Production services and applications"
+
+        # Contract reference (optional - can be computed from members)
+        contractName:
+          type: string
+          description: "Realm's composite contract name"
+          examples:
+            - "finance.composite"
+
+        contractVersion:
+          type: string
+          pattern: "^\\d+\\.\\d+\\.\\d+$"
+          description: "Realm's composite contract version"
+          examples:
+            - "3.0.0"
+
+        # Policies
+        policies:
+          type: array
+          description: "Policy names applied to this realm"
+          items:
+            type: string
+          examples:
+            - ["rate-limit-default", "capability-access-finance"]
+
+        inheritPolicies:
+          type: boolean
+          default: true
+          description: "Whether to inherit policies from parent realm"
+
+        # Members in this realm
+        members:
+          type: array
+          description: "Members belonging to this realm"
+          items:
+            $ref: "#/definitions/Member"
+
+        # Routes for this realm
+        routes:
+          type: array
+          description: "Routing rules for this realm"
+          items:
+            $ref: "#/definitions/Route"
+
+        # Bridges scoped to this realm
+        bridges:
+          type: array
+          description: "Bridges scoped to this realm"
+          items:
+            $ref: "#/definitions/Bridge"
+
+        # Child realms (recursive)
+        children:
+          type: array
+          description: "Child realms (recursive tree structure)"
+          items:
+            $ref: "#/definitions/Realm"
+
+        metadata:
+          type: object
+          description: "Additional metadata"
+          additionalProperties: true
+
+    # ============================================
+    # Member Definition
+    # ============================================
+    Member:
+      type: object
+      required:
+        - id
+        - name
+        - authType
+      properties:
+        id:
+          type: string
+          description: "Unique member identifier"
+          examples:
+            - "pharmacy-service-01"
+            - "mobile-app-ios"
+
+        name:
+          type: string
+          description: "Human-readable member name"
+          examples:
+            - "Pharmacy Service Instance 01"
+            - "iOS Mobile App"
+
+        memberType:
+          type: string
+          enum: [consumer, provider, agent-runtime, hybrid]
+          default: hybrid
+          description: "Type of member"
+
+        # Contract reference
+        contractName:
+          type: string
+          description: "Contract this member implements"
+          examples:
+            - "healthcare.pharmacy"
+
+        contractVersion:
+          type: string
+          pattern: "^\\d+\\.\\d+\\.\\d+$"
+          description: "Contract version"
+          examples:
+            - "2.1.0"
+
+        # Authentication
+        authType:
+          type: string
+          enum: [api-key, oauth2, jwt, mtls, saml, custom]
+          default: api-key
+          description: "Authentication method"
+
+        authConfig:
+          type: object
+          description: "Auth configuration (structure depends on authType)"
+          oneOf:
+            - $ref: "#/definitions/ApiKeyAuth"
+            - $ref: "#/definitions/OAuth2Auth"
+            - $ref: "#/definitions/JWTAuth"
+            - $ref: "#/definitions/MTLSAuth"
+            - $ref: "#/definitions/SAMLAuth"
+            - $ref: "#/definitions/CustomAuth"
+
+        # Agents (for agent-runtime members)
+        agents:
+          type: array
+          description: "Agents provided by this member"
+          items:
+            type: object
+            required:
+              - agentName
+            properties:
+              agentName:
+                type: string
+                examples:
+                  - "assistant-agent"
+
+              participatesIn:
+                type: array
+                items:
+                  type: string
+                description: "Loop types this agent participates in"
+                examples:
+                  - ["DrugInteractionCheck", "PharmacyNetworkSync"]
+
+              skills:
+                type: array
+                items:
+                  type: string
+                description: "Skills this agent has"
+                examples:
+                  - ["drug-lookup", "interaction-check"]
+
+              metadata:
+                type: object
+                additionalProperties: true
+
+        status:
+          type: string
+          enum: [online, offline, away]
+          default: offline
+          description: "Member status"
+
+        metadata:
+          type: object
+          description: "Additional metadata"
+          additionalProperties: true
+
+    # ============================================
+    # Route Definition
+    # ============================================
+    Route:
+      type: object
+      required:
+        - capability
+      properties:
+        routePattern:
+          type: string
+          description: "URL pattern for routing"
+          examples:
+            - "/pharmacy/*"
+            - "/api/v1/transactions/*"
+
+        capability:
+          type: string
+          description: "Capability identifier"
+          examples:
+            - "healthcare.pharmacy"
+            - "finance.transactions"
+
+        operation:
+          type: string
+          description: "Specific operation within capability"
+          examples:
+            - "DrugQuery"
+            - "TransactionCreate"
+
+        targetRealmId:
+          type: string
+          description: "Target realm for this route"
+          examples:
+            - "production"
+
+        targetMemberId:
+          type: string
+          description: "Specific target member (optional)"
+          examples:
+            - "pharmacy-service-01"
+
+        priority:
+          type: integer
+          default: 0
+          description: "Route priority (higher = preferred)"
+
+        active:
+          type: boolean
+          default: true
+          description: "Whether this route is active"
+
+    # ============================================
+    # Bridge Definition
+    # ============================================
+    Bridge:
+      type: object
+      required:
+        - name
+        - connectionType
+        - remoteGatewayUrl
+        - bridgeKey
+        - localContract
+      properties:
+        name:
+          type: string
+          description: "Bridge identifier"
+          examples:
+            - "government-compliance-bridge"
+            - "partner-acme-corp"
+
+        connectionType:
+          type: string
+          enum: [websocket, grpc, http, mqtt, kafka, custom]
+          default: websocket
+          description: "Connection protocol for this bridge"
+          examples:
+            - "websocket"
+            - "grpc"
+            - "kafka"
+
+        remoteGatewayUrl:
+          type: string
+          format: uri
+          description: "Remote mesh gateway URL (protocol depends on connectionType)"
+          examples:
+            - "wss://gov-compliance.example.com"
+            - "grpc://partner.example.com:50051"
+            - "kafka://kafka.example.com"
+
+        bridgeKey:
+          type: string
+          description: "Shared secret for mutual authentication"
+          examples:
+            - "brg_shared_secret_xyz789"
+            - "${BRIDGE_KEY_ENV_VAR}"
+
+        connectionConfig:
+          type: object
+          description: "Connection-specific configuration (structure depends on connectionType)"
+          additionalProperties: true
+          examples:
+            - # WebSocket config
+              compression: true
+              reconnectInterval: "5s"
+            - # gRPC config
+              tls: true
+              cert: "/path/to/cert.pem"
+              compression: "gzip"
+            - # Kafka config
+              topic: "realm-bridge"
+              consumerGroup: "bridge-01"
+              brokers:
+                - "kafka-1:9092"
+                - "kafka-2:9092"
+
+        localContract:
+          type: object
+          required:
+            - name
+            - version
+            - provides
+            - requires
+          properties:
+            name:
+              type: string
+              description: "Local contract name"
+              examples:
+                - "finance-compliance-bridge"
+
+            version:
+              type: string
+              pattern: "^\\d+\\.\\d+\\.\\d+$"
+              description: "Local contract version"
+              examples:
+                - "1.0.0"
+
+            provides:
+              type: array
+              description: "Capabilities we provide to remote mesh"
+              items:
+                type: object
+                required:
+                  - capability
+                  - providedBy
+                properties:
+                  capability:
+                    type: string
+                    description: "Capability identifier"
+                    examples:
+                      - "finance.transactions.report"
+
+                  providedBy:
+                    type: string
+                    description: "Realm path that provides this capability"
+                    examples:
+                      - "realm:finance/reporting"
+
+            requires:
+              type: array
+              description: "Capabilities we require from remote mesh"
+              items:
+                type: object
+                required:
+                  - capability
+                properties:
+                  capability:
+                    type: string
+                    description: "Required capability identifier"
+                    examples:
+                      - "compliance.validate"
+
+                  version:
+                    type: string
+                    description: "Required version constraint"
+                    examples:
+                      - ">=1.0.0"
+
+        routeToRealm:
+          type: string
+          description: "Realm to route bridge traffic to"
+          examples:
+            - "external-integrations"
+
+        active:
+          type: boolean
+          default: true
+          description: "Whether this bridge is active"
+
+    # ============================================
+    # Policy Type Definitions
+    # ============================================
+    
+    CapabilityAccessPolicy:
+      type: object
+      description: "Policy for controlling access to capabilities"
+      properties:
+        allowedCapabilities:
+          type: array
+          items:
+            type: string
+          description: "List of allowed capabilities (supports wildcards)"
+          examples:
+            - ["finance.*", "messaging.send"]
+
+        deniedCapabilities:
+          type: array
+          items:
+            type: string
+          description: "List of denied capabilities (overrides allowed)"
+          examples:
+            - ["finance.transactions.delete"]
+
+        mode:
+          type: string
+          enum: [whitelist, blacklist]
+          default: whitelist
+          description: "Access control mode"
+
+        accessControl:
+          type: array
+          description: "Fine-grained access control rules"
+          items:
+            type: object
+            required:
+              - source
+              - capabilities
+            properties:
+              source:
+                type: string
+                description: "Source realm, member, or bridge"
+                examples:
+                  - "realm:mobile-apps"
+                  - "member:partner-service"
+                  - "bridge:government-compliance"
+
+              capabilities:
+                type: array
+                items:
+                  type: string
+                description: "Capabilities this source can access"
+                examples:
+                  - ["messaging.send"]
+
+        applyToChildren:
+          type: boolean
+          default: true
+          description: "Whether to apply this policy to child realms"
+
+    RateLimitPolicy:
+      type: object
+      description: "Policy for rate limiting"
+      properties:
+        requestsPerMinute:
+          type: integer
+          minimum: 1
+          description: "Maximum requests per minute"
+          examples:
+            - 1000
+
+        burstSize:
+          type: integer
+          minimum: 1
+          description: "Burst size for token bucket"
+          examples:
+            - 100
+
+        perMember:
+          type: boolean
+          default: true
+          description: "Whether limits are per member or global"
+
+        action:
+          type: string
+          enum: [reject, queue, throttle]
+          default: reject
+          description: "Action when limit exceeded"
+
+    AuditPolicy:
+      type: object
+      description: "Policy for audit logging"
+      properties:
+        logLevel:
+          type: string
+          enum: [none, error, warn, info, debug]
+          default: info
+          description: "Audit log level"
+
+        includePayload:
+          type: boolean
+          default: false
+          description: "Whether to include message payloads in audit logs"
+
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: "Capabilities to audit (empty = all)"
+          examples:
+            - ["finance.*", "hr.salaries.*"]
+
+        retention:
+          type: string
+          description: "Audit log retention period"
+          examples:
+            - "90d"
+            - "1y"
+
+    AuthenticationPolicy:
+      type: object
+      description: "Policy for authentication requirements"
+      properties:
+        required:
+          type: boolean
+          default: true
+          description: "Whether authentication is required"
+
+        allowedAuthTypes:
+          type: array
+          items:
+            type: string
+            enum: [api-key, oauth2, jwt, mtls, saml, custom]
+          description: "Allowed authentication types"
+          examples:
+            - ["api-key", "jwt"]
+
+        tokenExpiration:
+          type: string
+          description: "Token expiration time"
+          examples:
+            - "1h"
+            - "24h"
+
+    AuthorizationPolicy:
+      type: object
+      description: "Policy for authorization (RBAC/ABAC)"
+      properties:
+        model:
+          type: string
+          enum: [rbac, abac, custom]
+          default: rbac
+          description: "Authorization model"
+
+        roles:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - capabilities
+            properties:
+              name:
+                type: string
+                examples:
+                  - "admin"
+                  - "reader"
+
+              capabilities:
+                type: array
+                items:
+                  type: string
+                examples:
+                  - ["finance.*"]
+
+        attributes:
+          type: object
+          description: "Attribute-based rules (for ABAC)"
+          additionalProperties: true
+
+    DataGovernancePolicy:
+      type: object
+      description: "Policy for data governance and compliance"
+      properties:
+        dataClassification:
+          type: string
+          enum: [public, internal, confidential, restricted]
+          description: "Data classification level"
+
+        retention:
+          type: string
+          description: "Data retention period"
+          examples:
+            - "7y"
+
+        encryption:
+          type: object
+          properties:
+            required:
+              type: boolean
+              default: false
+            
+            algorithm:
+              type: string
+              examples:
+                - "AES-256-GCM"
+
+        compliance:
+          type: array
+          items:
+            type: string
+          description: "Compliance frameworks"
+          examples:
+            - ["HIPAA", "GDPR", "SOC2"]
+
+    CustomPolicy:
+      type: object
+      description: "Custom policy with arbitrary configuration"
+      properties:
+        handler:
+          type: string
+          description: "Name of custom policy handler"
+          examples:
+            - "custom-fraud-detection"
+
+        config:
+          type: object
+          description: "Custom policy configuration"
+          additionalProperties: true
+
+    # ============================================
+    # Auth Type Definitions
+    # ============================================
+    
+    ApiKeyAuth:
+      type: object
+      required:
+        - apiKey
+      properties:
+        apiKey:
+          type: string
+          description: "Static API key for authentication"
+          examples:
+            - "mbr_abc123def456"
+
+        keyPrefix:
+          type: string
+          description: "Optional prefix for API key validation"
+          examples:
+            - "mbr_"
+
+    OAuth2Auth:
+      type: object
+      required:
+        - clientId
+        - clientSecret
+        - tokenEndpoint
+      properties:
+        clientId:
+          type: string
+          description: "OAuth2 client ID"
+
+        clientSecret:
+          type: string
+          description: "OAuth2 client secret"
+
+        tokenEndpoint:
+          type: string
+          format: uri
+          description: "OAuth2 token endpoint"
+
+        scopes:
+          type: array
+          items:
+            type: string
+          description: "Required OAuth2 scopes"
+
+    JWTAuth:
+      type: object
+      required:
+        - issuer
+        - audience
+      properties:
+        issuer:
+          type: string
+          description: "JWT issuer (iss claim)"
+
+        audience:
+          type: string
+          description: "JWT audience (aud claim)"
+
+        publicKeyUrl:
+          type: string
+          format: uri
+          description: "URL to fetch JWT public key (JWKS)"
+
+        publicKey:
+          type: string
+          description: "Inline public key for JWT verification"
+
+        algorithm:
+          type: string
+          enum: [RS256, RS384, RS512, ES256, ES384, ES512]
+          default: RS256
+
+    MTLSAuth:
+      type: object
+      required:
+        - clientCertificate
+      properties:
+        clientCertificate:
+          type: string
+          description: "PEM-encoded client certificate"
+
+        certificateAuthority:
+          type: string
+          description: "PEM-encoded CA certificate for validation"
+
+        allowedSubjects:
+          type: array
+          items:
+            type: string
+          description: "Allowed certificate subject DNs"
+
+    SAMLAuth:
+      type: object
+      required:
+        - entityId
+        - ssoUrl
+      properties:
+        entityId:
+          type: string
+          description: "SAML entity ID"
+
+        ssoUrl:
+          type: string
+          format: uri
+          description: "SAML SSO URL"
+
+        certificate:
+          type: string
+          description: "SAML IdP certificate"
+
+    CustomAuth:
+      type: object
+      required:
+        - handler
+      properties:
+        handler:
+          type: string
+          description: "Name of custom auth handler"
+          examples:
+            - "custom-ldap-auth"
+
+        config:
+          type: object
+          additionalProperties: true
+          description: "Custom auth configuration"
+
+# ============================================
+# Complete Example
+# ============================================
+examples:
+  production-mesh: |
+    apiVersion: interrealm.io/v1alpha1
+    kind: MeshConfiguration
+    metadata:
+      meshId: prod-main-mesh
+      version: "3.0.0"
+      description: "Production InterRealm Mesh"
+      author: "Platform Team"
+      tags: ["production", "main"]
+      previousVersion: "2.6.0"
+      breakingChanges:
+        - "Removed legacy messaging.v1 capability"
+    
+    spec:
+      gatewayUrl: wss://gateway.example.com
+      
+      capabilities:
+        - import: "./capabilities/pharmacy.yaml"
+        - import: "./capabilities/messaging.yaml"
+      
+      policies:
+        - name: rate-limit-default
+          type: rate-limit
+          config:
+            requestsPerMinute: 1000
+            burstSize: 100
+        
+        - name: capability-access-finance
+          type: capability-access
+          config:
+            allowedCapabilities:
+              - "finance.*"
+            deniedCapabilities:
+              - "finance.transactions.delete"
+            mode: whitelist
+            applyToChildren: true
+      
+      realms:
+        - realmId: root
+          displayName: "Root Realm"
+          realmType: root
+          policies:
+            - rate-limit-default
+          
+          children:
+            - realmId: finance
+              displayName: "Finance Department"
+              realmType: department
+              policies:
+                - capability-access-finance
+              
+              members:
+                - id: financial-reporter
+                  name: "Financial Reporting Service"
+                  memberType: provider
+                  contractName: finance.reporting
+                  contractVersion: "2.1.0"
+                  authType: api-key
+                  authConfig:
+                    apiKey: "mbr_finance_reporter_abc123"
+              
+              bridges:
+                - name: government-compliance
+                  connectionType: websocket
+                  remoteGatewayUrl: wss://gov-compliance.example.com
+                  bridgeKey: "brg_gov_xyz789"
+                  localContract:
+                    name: "finance-compliance-bridge"
+                    version: "1.0.0"
+                    provides:
+                      - capability: finance.transactions.report
+                        providedBy: "realm:finance/reporting"
+                    requires:
+                      - capability: compliance.validate
+                  routeToRealm: "finance/external"
+              
+              children:
+                - realmId: finance/reporting
+                  displayName: "Financial Reporting"
+                  realmType: service
+      
+      loadBalancing:
+        strategy: round-robin
+        healthCheck:
+          enabled: true
+          interval: "30s"
+          timeout: "5s"
+
+# ============================================
+# Validation Rules
+# ============================================
+validation:
+  rules:
+    - "metadata.meshId must be unique"
+    - "spec.gatewayUrl must be valid WebSocket URL"
+    - "Policy names must be unique within mesh"
+    - "Realm IDs must be unique within mesh"
+    - "Member IDs must be unique within realm"
+    - "Bridge names must be unique within realm"
+    - "Route priorities must be non-negative integers"
+    - "Contract versions must follow semantic versioning"
+    - "providedBy in bridge contracts must reference existing realms"
+    - "Policy references in realms must exist in policies array"
+
+# ============================================
+# Usage Instructions
+# ============================================
+usage: |
+  1. Create mesh-config.yaml conforming to this schema
+  2. Define capabilities in separate files and import them
+  3. Use realm-cli to validate the configuration
+  4. Import configuration to database
+  5. Export current state for backup/versioning
+  6. Track deltas between versions
+
+commands:
+  validate: "realm-cli validate mesh ./production-mesh.yaml"
+  import: "realm-cli import mesh ./production-mesh.yaml"
+  export: "realm-cli export mesh --output ./backup-mesh.yaml"
+  diff: "realm-cli diff mesh ./v2.6.0.yaml ./v3.0.0.yaml"

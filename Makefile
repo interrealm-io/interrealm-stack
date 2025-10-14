@@ -1,13 +1,16 @@
 .PHONY: all help install build clean test \
-        install-broker install-console install-sdk install-mvp install-all \
-        build-broker build-console build-sdk build-all \
-        clean-broker clean-console clean-sdk clean-all \
+        install-broker install-console install-sdk install-mvp install-nexus install-all \
+        build-broker build-console build-sdk build-nexus build-all \
+        clean-broker clean-console clean-sdk clean-nexus clean-all \
         broker-db-up broker-db-down broker-db-reset broker-db-shell broker-db-logs broker-db-setup \
+        nexus-db-up nexus-db-down nexus-db-reset nexus-db-shell nexus-db-logs nexus-db-setup \
+        db-nuke db-nuke-all \
         broker broker-dev broker-start \
+        nexus nexus-dev nexus-start \
         console console-dev \
         mvp-install mvp-demo mvp-fast mvp-continuous mvp-price-check mvp-stress mvp-multi-realm mvp-all-patterns \
-        kill-all kill-broker kill-console kill-agents \
-        env-setup env-broker env-console env-mvp \
+        kill-all kill-broker kill-console kill-nexus kill-agents \
+        env-setup env-broker env-console env-mvp env-nexus \
         dev mvp mvp-start mvp-stop \
         release \
         docker-build docker-build-broker docker-build-console docker-up docker-down docker-logs docker-push docker-push-all
@@ -17,6 +20,7 @@
 # ==============================================
 BROKER_DIR := broker/service
 CONSOLE_DIR := broker/console
+NEXUS_DIR := nexus/server
 SDK_DIR := sdk/node
 MVP_DIR := mvp
 CORE_DIR := core
@@ -25,13 +29,21 @@ CORE_DIR := core
 # Environment Variables (Non-Sensitive)
 # ==============================================
 
-# Database Configuration
+# Broker Database Configuration
 DB_HOST := localhost
 DB_PORT := 5433
 DB_NAME := broker_db
 DB_USER := broker_user
 DB_PASSWORD := broker_pass
 DATABASE_URL := postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)
+
+# Nexus Database Configuration
+NEXUS_DB_HOST := localhost
+NEXUS_DB_PORT := 5434
+NEXUS_DB_NAME := nexus
+NEXUS_DB_USER := nexus_user
+NEXUS_DB_PASSWORD := nexus_pass
+NEXUS_DATABASE_URL := postgresql://$(NEXUS_DB_USER):$(NEXUS_DB_PASSWORD)@$(NEXUS_DB_HOST):$(NEXUS_DB_PORT)/$(NEXUS_DB_NAME)
 
 # Broker Service
 ADMIN_API_KEY := admin-key-123
@@ -80,10 +92,13 @@ help:
 	@echo "  make clean-broker       - Clean broker build"
 	@echo "  make clean-console      - Clean console build"
 	@echo "  make clean-sdk          - Clean SDK build"
+	@echo "  make clean-nexus        - Clean nexus build"
 	@echo ""
 	@echo "=� Run Commands:"
 	@echo "  make broker             - Start broker (with database check)"
 	@echo "  make broker-dev         - Start broker in dev mode with hot reload"
+	@echo "  make nexus              - Start nexus gateway (with database check)"
+	@echo "  make nexus-dev          - Start nexus in dev mode with hot reload"
 	@echo "  make console            - Start console UI"
 	@echo "  make console-dev        - Start console in dev mode"
 	@echo ""
@@ -93,6 +108,13 @@ help:
 	@echo "  make broker-db-reset    - Reset broker database (destroys data)"
 	@echo "  make broker-db-shell    - Open PostgreSQL shell"
 	@echo "  make broker-db-logs     - Show database logs"
+	@echo "  make nexus-db-up        - Start nexus database (PostgreSQL on port 5434)"
+	@echo "  make nexus-db-down      - Stop nexus database"
+	@echo "  make nexus-db-reset     - Reset nexus database (destroys data)"
+	@echo "  make nexus-db-shell     - Open PostgreSQL shell for nexus"
+	@echo "  make nexus-db-logs      - Show nexus database logs"
+	@echo "  make db-nuke            - NUKE: Completely destroy ALL databases and start fresh"
+	@echo "  make db-nuke-all        - NUKE: Destroy databases AND regenerate schemas"
 	@echo ""
 	@echo "<� MVP Demo Commands:"
 	@echo "  make mvp-demo           - Run the main MVP demo (price-check)"
@@ -106,6 +128,7 @@ help:
 	@echo "=� Kill Commands:"
 	@echo "  make kill-all           - Kill all running processes"
 	@echo "  make kill-broker        - Kill broker processes"
+	@echo "  make kill-nexus         - Kill nexus processes"
 	@echo "  make kill-console       - Kill console processes"
 	@echo "  make kill-agents        - Kill agent processes"
 	@echo ""
@@ -133,7 +156,7 @@ help:
 # ==============================================
 # Environment Setup
 # ==============================================
-env-setup: env-broker env-console env-mvp
+env-setup: env-broker env-console env-mvp env-nexus
 	@echo " All .env files generated!"
 
 env-broker:
@@ -193,6 +216,21 @@ env-mvp:
 	@echo "REALM_ID_PREFIX=$(REALM_ID_PREFIX)" >> $(MVP_DIR)/.env
 	@echo " Generated $(MVP_DIR)/.env"
 
+env-nexus:
+	@echo "=� Generating nexus gateway .env file..."
+	@echo "# Nexus Database Configuration (Auto-generated)" > $(NEXUS_DIR)/.env
+	@echo "DB_HOST=$(NEXUS_DB_HOST)" >> $(NEXUS_DIR)/.env
+	@echo "DB_PORT=$(NEXUS_DB_PORT)" >> $(NEXUS_DIR)/.env
+	@echo "DB_NAME=$(NEXUS_DB_NAME)" >> $(NEXUS_DIR)/.env
+	@echo "DB_USER=$(NEXUS_DB_USER)" >> $(NEXUS_DIR)/.env
+	@echo "DB_PASSWORD=$(NEXUS_DB_PASSWORD)" >> $(NEXUS_DIR)/.env
+	@echo "DATABASE_URL=$(NEXUS_DATABASE_URL)" >> $(NEXUS_DIR)/.env
+	@echo "" >> $(NEXUS_DIR)/.env
+	@echo "# Logging" >> $(NEXUS_DIR)/.env
+	@echo "LOG_LEVEL=$(LOG_LEVEL)" >> $(NEXUS_DIR)/.env
+	@echo "NODE_ENV=$(NODE_ENV)" >> $(NEXUS_DIR)/.env
+	@echo " Generated $(NEXUS_DIR)/.env"
+
 broker-db-setup:
 	@echo "=� Setting up database schema with Prisma..."
 	@if ! docker ps | grep -q broker-postgres 2>/dev/null; then \
@@ -210,6 +248,25 @@ broker-db-setup:
 	@cd $(BROKER_DIR) && npx prisma db push --skip-generate
 	@echo "=� Generating Prisma client..."
 	@cd $(BROKER_DIR) && npx prisma generate
+	@echo " Prisma schema applied successfully!"
+
+nexus-db-setup:
+	@echo "=� Setting up nexus database schema with Prisma..."
+	@if ! docker ps | grep -q nexus-postgres 2>/dev/null; then \
+		echo "= Database not running, starting it..."; \
+		$(MAKE) nexus-db-up; \
+		sleep 3; \
+	fi
+	@echo "=� Waiting for database to be ready..."
+	@until docker exec nexus-postgres pg_isready -U nexus_user -d nexus > /dev/null 2>&1; do \
+		echo "� Still waiting for PostgreSQL..."; \
+		sleep 2; \
+	done
+	@echo " Database is ready!"
+	@echo "=� Pushing Prisma schema to database..."
+	@cd $(NEXUS_DIR) && npx prisma db push --skip-generate
+	@echo "=� Generating Prisma client..."
+	@cd $(NEXUS_DIR) && npx prisma generate
 	@echo " Prisma schema applied successfully!"
 
 # ==============================================
@@ -558,7 +615,7 @@ mvp-all-patterns:
 # ==============================================
 # Kill Processes
 # ==============================================
-kill-all: kill-broker kill-console kill-agents
+kill-all: kill-broker kill-nexus kill-console kill-agents
 	@echo "=� All processes killed"
 
 kill-broker:
@@ -724,3 +781,254 @@ docker-restart:
 docker-ps:
 	@echo "=� Docker services status:"
 	docker-compose ps
+
+# ==============================================
+# Nexus Database
+# ==============================================
+nexus-db-up:
+	@echo "=� Starting nexus database (PostgreSQL)..."
+	@echo "� Checking if ports 5434 and 5052 are available..."
+	@if lsof -i :5434 >/dev/null 2>&1; then \
+		echo ""; \
+		echo "= ERROR: Port 5434 is already in use!"; \
+		echo ""; \
+		echo "� What's using the port:"; \
+		lsof -i :5434 | head -5; \
+		echo ""; \
+		echo "= To fix this, you can:"; \
+		echo "   1. Stop the process: lsof -ti :5434 | xargs kill"; \
+		echo "   2. Or change NEXUS_DB_PORT in the Makefile to a different port"; \
+		echo "   3. Then run: make nexus-db-up"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@if lsof -i :5052 >/dev/null 2>&1; then \
+		echo ""; \
+		echo "=  WARNING: Port 5052 (pgAdmin) is already in use!"; \
+		echo "� What's using the port:"; \
+		lsof -i :5052 | head -5; \
+		echo ""; \
+		echo "= pgAdmin won't start, but PostgreSQL will. To fix:"; \
+		echo "   1. Stop the process: lsof -ti :5052 | xargs kill"; \
+		echo "   2. Or edit nexus/server/docker-compose.yml to use a different port"; \
+		echo ""; \
+	fi
+	@if docker ps -a | grep -q nexus-postgres 2>/dev/null; then \
+		if docker ps | grep -q nexus-postgres 2>/dev/null; then \
+			echo "= Database is already running!"; \
+		else \
+			echo "= Found stopped container, removing it..."; \
+			docker-compose -f $(NEXUS_DIR)/docker-compose.yml down; \
+			docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d; \
+		fi; \
+	else \
+		docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d; \
+	fi
+	@echo "=� PostgreSQL is starting on port 5434"
+	@echo "=' pgAdmin is available at http://localhost:5052"
+	@echo "= Default credentials: admin@example.com / admin"
+	@echo "=� Database: nexus, User: nexus_user"
+
+nexus-db-down:
+	@echo "=� Stopping nexus database..."
+	docker-compose -f $(NEXUS_DIR)/docker-compose.yml down
+
+nexus-db-reset:
+	@echo "= Resetting nexus database (this will destroy all data)..."
+	docker-compose -f $(NEXUS_DIR)/docker-compose.yml down -v
+	docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d
+	@echo "� Waiting for database to be ready..."
+	@sleep 5
+	@until docker exec nexus-postgres pg_isready -U nexus_user -d nexus > /dev/null 2>&1; do \
+		sleep 2; \
+	done
+	@echo " Database reset complete!"
+	@echo "=� Applying Prisma schema..."
+	@$(MAKE) nexus-db-setup
+
+nexus-db-shell:
+	@echo "=' Opening PostgreSQL shell for nexus database..."
+	docker exec -it nexus-postgres psql -U nexus_user -d nexus
+
+nexus-db-logs:
+	@echo "=� Showing nexus database logs..."
+	docker-compose -f $(NEXUS_DIR)/docker-compose.yml logs -f nexus-postgres
+
+# ==============================================
+# Run Nexus
+# ==============================================
+nexus: nexus-start
+
+nexus-start:
+	@echo "=� Starting nexus gateway with database..."
+	@echo "=� Step 1: Checking if database is running..."
+	@if ! docker ps | grep -q nexus-postgres 2>/dev/null; then \
+		echo "= Database not running, starting PostgreSQL..."; \
+		docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d; \
+		echo "� Waiting for PostgreSQL to be ready..."; \
+		sleep 10; \
+		until docker exec nexus-postgres pg_isready -U nexus_user -d nexus > /dev/null 2>&1; do \
+			echo "� Still waiting for PostgreSQL..."; \
+			sleep 2; \
+		done; \
+		echo " PostgreSQL is ready!"; \
+	else \
+		echo " Database is already running"; \
+	fi
+	@echo "=� Step 2: Starting nexus gateway application..."
+	@echo "=� Database: localhost:5434 (nexus / nexus_user)"
+	@echo ""
+	cd $(NEXUS_DIR) && npm start
+
+nexus-dev:
+	@echo "=� Starting nexus gateway in development mode..."
+	@if [ ! -f $(NEXUS_DIR)/.env ]; then \
+		echo "= .env file not found, generating..."; \
+		$(MAKE) env-nexus; \
+	fi
+	@if ! docker ps | grep -q nexus-postgres 2>/dev/null; then \
+		echo "= Starting database..."; \
+		docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d; \
+		echo "� Waiting for database..."; \
+		sleep 5; \
+		until docker exec nexus-postgres pg_isready -U nexus_user -d nexus > /dev/null 2>&1; do \
+			sleep 2; \
+		done; \
+	fi
+	@echo "=% Starting nexus gateway with hot reload..."
+	cd $(NEXUS_DIR) && npm run dev
+
+# ==============================================
+# Installation (Nexus)
+# ==============================================
+install-nexus:
+	@echo "=� Installing nexus gateway dependencies..."
+	cd $(NEXUS_DIR) && npm install
+	@echo " Nexus dependencies installed"
+
+# ==============================================
+# Build (Nexus)
+# ==============================================
+build-nexus:
+	@echo "=( Building nexus gateway..."
+	cd $(NEXUS_DIR) && npm run build
+	@echo " Nexus built"
+
+# ==============================================
+# Clean (Nexus)
+# ==============================================
+clean-nexus:
+	@echo ">� Cleaning nexus..."
+	cd $(NEXUS_DIR) && rm -rf dist node_modules/.cache
+	@echo " Nexus cleaned"
+
+# ==============================================
+# Kill Nexus Processes
+# ==============================================
+kill-nexus:
+	@echo "=� Killing nexus processes..."
+	@echo "=� Looking for nexus processes..."
+	-@pkill -f "nexus.*src/index" 2>/dev/null || true
+	-@pkill -f "ts-node.*nexus.*index.ts" 2>/dev/null || true
+	-@pkill -f "tsx.*nexus.*index.ts" 2>/dev/null || true
+	-@pkill -f "node.*nexus.*index.js" 2>/dev/null || true
+	@echo " Nexus processes killed"
+
+# ==============================================
+# Database Nuclear Options
+# ==============================================
+db-nuke:
+	@echo ""
+	@echo "========================================"
+	@echo "= DATABASE NUCLEAR OPTION"
+	@echo "========================================"
+	@echo ""
+	@echo "= This will COMPLETELY DESTROY:"
+	@echo "  - Broker PostgreSQL database (port 5433)"
+	@echo "  - Nexus PostgreSQL database (port 5434)"
+	@echo "  - ALL data volumes"
+	@echo "  - ALL containers"
+	@echo ""
+	@echo "= Then it will:"
+	@echo "  - Start fresh databases"
+	@echo "  - Wait for them to be ready"
+	@echo ""
+	@echo "= WARNING: This is irreversible!"
+	@echo ""
+	@read -p "Type 'NUKE' to confirm: " confirmation; \
+	if [ "$$confirmation" != "NUKE" ]; then \
+		echo ""; \
+		echo "= Aborted. No changes made."; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "= Step 1: Stopping all database containers..."
+	-@docker-compose -f $(BROKER_DIR)/docker-compose.yml down -v 2>/dev/null || true
+	-@docker-compose -f $(NEXUS_DIR)/docker-compose.yml down -v 2>/dev/null || true
+	@echo " Containers stopped"
+	@echo ""
+	@echo "= Step 2: Removing any orphaned containers and volumes..."
+	-@docker container rm -f broker-postgres 2>/dev/null || true
+	-@docker container rm -f nexus-postgres 2>/dev/null || true
+	-@docker container rm -f broker-pgadmin 2>/dev/null || true
+	-@docker container rm -f nexus-pgadmin 2>/dev/null || true
+	-@docker volume rm -f broker_service_postgres-data 2>/dev/null || true
+	-@docker volume rm -f broker_service_pgadmin-data 2>/dev/null || true
+	-@docker volume rm -f nexus_server_postgres-data 2>/dev/null || true
+	-@docker volume rm -f nexus_server_pgadmin-data 2>/dev/null || true
+	@echo " Cleanup complete"
+	@echo ""
+	@echo "= Step 3: Starting fresh broker database..."
+	@docker-compose -f $(BROKER_DIR)/docker-compose.yml up -d
+	@echo ""
+	@echo "= Step 4: Starting fresh nexus database..."
+	@docker-compose -f $(NEXUS_DIR)/docker-compose.yml up -d
+	@echo ""
+	@echo "= Step 5: Waiting for databases to be ready..."
+	@sleep 5
+	@until docker exec broker-postgres pg_isready -U broker_user -d broker_db > /dev/null 2>&1; do \
+		echo "� Waiting for broker database..."; \
+		sleep 2; \
+	done
+	@until docker exec nexus-postgres pg_isready -U nexus_user -d nexus > /dev/null 2>&1; do \
+		echo "� Waiting for nexus database..."; \
+		sleep 2; \
+	done
+	@echo ""
+	@echo "========================================"
+	@echo " DATABASES NUKED AND RESTARTED"
+	@echo "========================================"
+	@echo ""
+	@echo "= Fresh databases are now running:"
+	@echo "  = Broker: localhost:5433 (broker_db / broker_user)"
+	@echo "  = Nexus:  localhost:5434 (nexus / nexus_user)"
+	@echo ""
+	@echo "= Next steps:"
+	@echo "  1. Run: make broker-db-setup  (apply broker schema)"
+	@echo "  2. Run: make nexus-db-setup   (apply nexus schema)"
+	@echo "  OR run: make db-nuke-all      (to do both in one step)"
+	@echo ""
+
+db-nuke-all: db-nuke
+	@echo "= Applying Prisma schemas..."
+	@echo ""
+	@echo "= Step 1: Setting up broker database schema..."
+	@$(MAKE) broker-db-setup
+	@echo ""
+	@echo "= Step 2: Setting up nexus database schema..."
+	@$(MAKE) nexus-db-setup
+	@echo ""
+	@echo "========================================"
+	@echo " ALL DATABASES READY"
+	@echo "========================================"
+	@echo ""
+	@echo "= Both databases are now running with fresh schemas:"
+	@echo "  = Broker: localhost:5433 (broker_db / broker_user)"
+	@echo "  = Nexus:  localhost:5434 (nexus / nexus_user)"
+	@echo ""
+	@echo "= You can now start your services:"
+	@echo "  make broker-dev"
+	@echo "  make nexus-dev"
+	@echo "  make console-dev"
+	@echo ""
