@@ -1,16 +1,13 @@
 import { logger } from '../../config/logger';
+import { ConnectionManager } from '../connection-manager';
 
 export class ServiceCallHandler {
-  constructor() {
+  constructor(private connectionManager: ConnectionManager) {
     logger.debug('ServiceCallHandler initialized');
   }
 
-  // TODO: Implement service call message handling
-  async handleServiceCall(connection: any, payload: any): Promise<void> {
-    throw new Error('Not implemented yet');
-  }
-
-  async handleServiceResponse(connection: any, payload: any): Promise<void> {
-    throw new Error('Not implemented yet');
+  async handleServiceCall(_sourceMemberId: string, _payload: any): Promise<void> {
+    // TODO: Implement service call routing
+    logger.warn('Service call handling not yet implemented');
   }
 }

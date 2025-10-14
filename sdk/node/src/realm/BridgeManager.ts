@@ -4,6 +4,8 @@ import { Realm } from './Realm';
 import { ServiceMetadata } from '../decorators/Service';
 import { AgentMetadata } from '../decorators/Agent';
 import { RecruitmentContext, ExecutionContext } from '../agent/LoopParticipant';
+import { AuthClient } from '../auth/AuthClient';
+import { CapabilityManifestBuilder, CapabilityManifest } from './CapabilityManifest';
 
 interface ServiceHandler {
   metadata: ServiceMetadata;
@@ -21,23 +23,72 @@ interface AgentHandler {
 
 export class BridgeManager extends EventEmitter {
   private ws?: WebSocket;
+  private authClient?: AuthClient;
+  private jwtToken?: string;
   private serviceHandlers: Map<string, ServiceHandler> = new Map();
   private agentHandlers: Map<string, AgentHandler> = new Map();
   private pendingRequests: Map<string, { resolve: Function; reject: Function; timeout: NodeJS.Timeout }> = new Map();
+  private capabilityManifest?: CapabilityManifest;
+  private isAuthenticated = false;
 
   constructor(private realm: Realm) {
     super();
   }
 
-  async connect(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      console.log(`Connecting to gateway: ${url}`);
+  /**
+   * Connect to the Nexus gateway with JWT authentication
+   * Phase 1: Authenticate via REST and get JWT token
+   * Phase 2: Connect to WebSocket gateway with JWT
+   * Phase 3: Send member handshake with capability manifest
+   */
+  async connect(): Promise<void> {
+    const config = this.realm.getConfig();
 
-      this.ws = new WebSocket(url);
+    // Phase 1: Authenticate via REST and get JWT token
+    console.log('Phase 1: Authenticating with Nexus server...');
+    this.authClient = new AuthClient({
+      serverUrl: config.serverUrl,
+      apiKey: config.apiKey,
+      timeout: config.authTimeout || 10000,
+    });
+
+    try {
+      this.jwtToken = await this.authClient.authenticate();
+      this.isAuthenticated = true;
+      console.log('✓ Authentication successful');
+    } catch (error: any) {
+      console.error('✗ Authentication failed:', error.message);
+      throw new Error(`Authentication failed: ${error.message}`);
+    }
+
+    // Phase 2: Build capability manifest from registries
+    console.log('Phase 2: Building capability manifest...');
+    const manifestBuilder = new CapabilityManifestBuilder(
+      this.realm.getServiceRegistry(),
+      this.realm.getAgentRegistry()
+    );
+    this.capabilityManifest = manifestBuilder.build();
+    console.log('✓ Capability manifest built');
+    console.log(CapabilityManifestBuilder.summarize(this.capabilityManifest));
+
+    // Phase 3: Connect to WebSocket gateway with JWT
+    return new Promise((resolve, reject) => {
+      console.log('Phase 3: Connecting to gateway...');
+
+      // Add JWT token as query parameter for WebSocket authentication
+      const gatewayUrlWithAuth = `${config.gatewayUrl}?token=${this.jwtToken}`;
+
+      this.ws = new WebSocket(gatewayUrlWithAuth);
+
+      const connectionTimeout = setTimeout(() => {
+        reject(new Error('WebSocket connection timeout'));
+        this.ws?.close();
+      }, config.connectionTimeout || 15000);
 
       this.ws.on('open', () => {
-        console.log('Connected to gateway');
-        this.sendHandshake();
+        clearTimeout(connectionTimeout);
+        console.log('✓ Connected to gateway');
+        this.sendMemberHandshake();
         resolve();
       });
 
@@ -46,28 +97,40 @@ export class BridgeManager extends EventEmitter {
       });
 
       this.ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
+        console.error('✗ WebSocket error:', error);
+        this.isAuthenticated = false;
         reject(error);
       });
 
       this.ws.on('close', () => {
         console.log('Disconnected from gateway');
+        this.isAuthenticated = false;
         this.emit('disconnected');
       });
     });
   }
 
-  private sendHandshake(): void {
+  /**
+   * Send member handshake with capability manifest
+   * This replaces the old realm-based handshake
+   */
+  private sendMemberHandshake(): void {
     const config = this.realm.getConfig();
 
     this.send({
-      type: 'handshake',
+      type: 'member-handshake',
       payload: {
+        memberId: config.memberId,
         realmId: config.realmId,
-        capabilities: config.capabilities || [],
-        authToken: config.authToken
+        contractName: config.contractName,
+        contractVersion: config.contractVersion,
+        capabilities: this.capabilityManifest,
+        timestamp: new Date().toISOString(),
       }
     });
+
+    console.log(`Sent member handshake for: ${config.memberId}`);
   }
 
   private handleMessage(data: string): void {
@@ -75,6 +138,9 @@ export class BridgeManager extends EventEmitter {
       const message = JSON.parse(data);
 
       switch (message.type) {
+        case 'member-handshake-ack':
+          this.handleMemberHandshakeAck(message);
+          break;
         case 'service-call':
           this.handleServiceCall(message);
           break;
@@ -99,12 +165,53 @@ export class BridgeManager extends EventEmitter {
         case 'event':
           this.handleEvent(message);
           break;
+        case 'error':
+          this.handleError(message);
+          break;
         default:
           console.warn('Unknown message type:', message.type);
       }
     } catch (error) {
       console.error('Error handling message:', error);
     }
+  }
+
+  /**
+   * Handle member handshake acknowledgment from gateway
+   */
+  private handleMemberHandshakeAck(message: any): void {
+    const { memberId, status, policies, directory, error } = message.payload;
+
+    if (error) {
+      console.error('✗ Member handshake failed:', error);
+      this.emit('handshake-failed', { error });
+      return;
+    }
+
+    console.log('✓ Member handshake acknowledged');
+    console.log(`  Status: ${status}`);
+    console.log(`  Policies: ${policies?.length || 0} rules`);
+    console.log(`  Available services: ${Object.keys(directory?.availableServices || {}).length}`);
+    console.log(`  Available capabilities: ${directory?.availableCapabilities?.length || 0}`);
+
+    this.emit('handshake-complete', {
+      memberId,
+      status,
+      policies,
+      directory,
+    });
+
+    this.emit('ready');
+  }
+
+  /**
+   * Handle error messages from gateway
+   */
+  private handleError(message: any): void {
+    const { error, code, details } = message.payload;
+    console.error(`Gateway error [${code || 'UNKNOWN'}]:`, error);
+
+    this.emit('gateway-error', { error, code, details });
   }
 
   private async handleServiceCall(message: any): Promise<void> {

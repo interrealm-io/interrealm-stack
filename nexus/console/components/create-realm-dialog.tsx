@@ -20,7 +20,7 @@ interface CreateRealmDialogProps {
 export function CreateRealmDialog({ open, onOpenChange, onRealmCreated, existingRealms = [] }: CreateRealmDialogProps) {
   const [realmId, setRealmId] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [parentId, setParentId] = useState<string>('');
+  const [parentId, setParentId] = useState<string>('__none__');
   const [realmType, setRealmType] = useState<RealmType>('root');
   const [policies, setPolicies] = useState('allow:*');
   const [inheritPolicies, setInheritPolicies] = useState(true);
@@ -32,7 +32,7 @@ export function CreateRealmDialog({ open, onOpenChange, onRealmCreated, existing
     if (open) {
       setRealmId('');
       setDisplayName('');
-      setParentId('');
+      setParentId('__none__');
       setRealmType('root');
       setPolicies('allow:*');
       setInheritPolicies(true);
@@ -48,6 +48,14 @@ export function CreateRealmDialog({ open, onOpenChange, onRealmCreated, existing
       setError('Realm ID is required');
       return;
     }
+
+    // Validate realmId format (lowercase alphanumeric, hyphens, slashes only)
+    const realmIdRegex = /^[a-z0-9-\/]+$/;
+    if (!realmIdRegex.test(realmId)) {
+      setError('Realm ID must contain only lowercase letters, numbers, hyphens, and slashes');
+      return;
+    }
+
     if (!displayName.trim()) {
       setError('Display Name is required');
       return;
@@ -64,7 +72,7 @@ export function CreateRealmDialog({ open, onOpenChange, onRealmCreated, existing
       const newRealm = await realmApi.create({
         realmId,
         displayName,
-        parentId: parentId || null,
+        parentRealmId: parentId && parentId !== '__none__' ? parentId : null,
         realmType,
         policies: policiesArray.length > 0 ? policiesArray : ['allow:*'],
         inheritPolicies,
@@ -153,7 +161,7 @@ export function CreateRealmDialog({ open, onOpenChange, onRealmCreated, existing
                   <SelectValue placeholder="None (Root Realm)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None (Root Realm)</SelectItem>
+                  <SelectItem value="__none__">None (Root Realm)</SelectItem>
                   {existingRealms.map((realm) => (
                     <SelectItem key={realm.id} value={realm.id}>
                       {realm.displayName} ({realm.realmId})

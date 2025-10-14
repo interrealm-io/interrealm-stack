@@ -63,7 +63,11 @@ const getStatusColor = (status?: RealmStatus): string => {
 };
 
 export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  // Auto-expand root nodes by default
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
+    const rootNodes = realms.filter((r) => !r.parentRealmId).map((r) => r.id);
+    return new Set(rootNodes);
+  });
 
   // Build tree structure
   const buildTree = (): RealmTreeNode[] => {
@@ -73,7 +77,7 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
     // First pass: create maps
     realms.forEach((realm) => {
       realmMap.set(realm.id, realm);
-      const parentId = realm.parentId || 'root';
+      const parentId = realm.parentRealmId || 'root';
       if (!childrenMap.has(parentId)) {
         childrenMap.set(parentId, []);
       }
@@ -90,14 +94,14 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
         realmId: realm.realmId,
         displayName: realm.displayName,
         realmType: realm.realmType,
-        parentId: realm.parentId,
+        parentRealmId: realm.parentRealmId,
         children,
         memberCount: realm.members?.length || 0,
       };
     };
 
     // Get root realms (no parent)
-    const rootRealms = realms.filter((r) => !r.parentId);
+    const rootRealms = realms.filter((r) => !r.parentRealmId);
     rootRealms.forEach((realm) => {
       treeNodes.push(buildNode(realm));
     });
@@ -115,6 +119,16 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
       }
       return next;
     });
+  };
+
+  const expandAll = () => {
+    setExpandedNodes(new Set(realms.map((r) => r.id)));
+  };
+
+  const collapseAll = () => {
+    // Keep root nodes expanded
+    const rootNodes = realms.filter((r) => !r.parentRealmId).map((r) => r.id);
+    setExpandedNodes(new Set(rootNodes));
   };
 
   const renderNode = (node: RealmTreeNode, depth = 0): JSX.Element => {
@@ -173,8 +187,8 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
                 realmId: childRealm.realmId,
                 displayName: childRealm.displayName,
                 realmType: childRealm.realmType,
-                parentId: childRealm.parentId,
-                children: realms.filter((r) => r.parentId === childId).map((r) => r.id),
+                parentRealmId: childRealm.parentRealmId,
+                children: realms.filter((r) => r.parentRealmId === childId).map((r) => r.id),
                 memberCount: childRealm.members?.length || 0,
               };
               return renderNode(childNode, depth + 1);
@@ -198,5 +212,25 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
     );
   }
 
-  return <div className="space-y-1">{treeNodes.map((node) => renderNode(node))}</div>;
+  return (
+    <div className="space-y-2">
+      {realms.length > 1 && (
+        <div className="flex gap-2 px-2">
+          <button
+            onClick={expandAll}
+            className="flex-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+          >
+            Expand All
+          </button>
+          <button
+            onClick={collapseAll}
+            className="flex-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+          >
+            Collapse All
+          </button>
+        </div>
+      )}
+      <div className="space-y-1">{treeNodes.map((node) => renderNode(node))}</div>
+    </div>
+  );
 }

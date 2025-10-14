@@ -1,188 +1,121 @@
-# RealmMesh MVP Demo
+# InterRealm MVP
 
-This MVP demonstrates two agents coordinating through the RealmMesh gateway using the Loop coordination pattern.
+A Turborepo monorepo containing the InterRealm MVP applications.
 
-## Architecture
+## What's inside?
 
-```
-┌─────────────┐
-│   Gateway   │  (Port 8080 - WebSocket)
-└──────┬──────┘
-       │
-   ┌───┼───┐
-   │   │   │
-┌──▼─┐ │ ┌─▼──┐
-│ P  │ │ │ I  │  P = PricingAgent
-│    │ │ │    │  I = InventoryAgent
-└────┘ │ └────┘
-       │
-  ┌────▼────┐
-  │ Console │  (Port 3000 - Web UI)
-  └─────────┘
-```
+This monorepo includes the following packages and apps:
 
-## What It Does
+### Apps
 
-1. **Gateway** starts and listens for WebSocket connections
-2. **Two Agents** connect as clients, each providing different capabilities
-3. **Scenario script** initiates a "PriceCheck" loop
-4. **Agents** are recruited, execute their logic, and return results
-5. **Gateway** aggregates results and returns the final answer
-6. **Web Console** shows real-time activity
+- `test-agents`: Next.js 15 application for the InterRealm MVP landing page
 
-## Quick Start
+### Packages
+
+- `@interrealm/ui`: Shared UI component library built with Radix UI and Tailwind CSS
+  - Includes reusable components from the Nexus console
+  - Theme provider and theme switcher components
+  - Global styles with light/dark mode support
+
+### Utilities
+
+This Turborepo has some additional tools already setup:
+
+- [TypeScript](https://www.typescriptlang.org/) for static type checking
+- [ESLint](https://eslint.org/) for code linting
+- [Prettier](https://prettier.io) for code formatting
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 18.0.0
+- pnpm >= 9.0.0
+
+### Installation
+
+Install dependencies using pnpm:
 
 ```bash
-# From the mvp directory
-npm install
-cd agents/pricing-agent && npm install && cd ../..
-cd agents/inventory-agent && npm install && cd ../..
-
-# Run the complete demo
-npm run demo
+pnpm install
 ```
 
-This single command will:
-- Start the gateway
-- Start the web console
-- Start both agents
-- Run the demo scenario
-- Show real-time coordination
+### Development
 
-## Manual Start (for debugging)
+To run the test-agents app in development mode:
 
-Terminal 1 - Gateway:
 ```bash
-cd ../infra/gateway
-npm run dev
+pnpm dev
 ```
 
-Terminal 2 - Console:
+The test-agents app will be available at [http://localhost:5000](http://localhost:5000)
+
+### Building
+
+To build all apps and packages:
+
 ```bash
-cd ../apps/console
-npm run dev
+pnpm build
 ```
 
-Terminal 3 - Pricing Agent:
+### Linting
+
+To lint all apps and packages:
+
 ```bash
-cd agents/pricing-agent
-npm start
+pnpm lint
 ```
 
-Terminal 4 - Inventory Agent:
+### Cleaning
+
+To clean all build artifacts:
+
 ```bash
-cd agents/inventory-agent
-npm start
+pnpm clean
 ```
 
-Terminal 5 - Scenario:
-```bash
-node scenarios/price-check-scenario.js
+## Project Structure
+
+```
+mvp/
+├── apps/
+│   └── test-agents/         # Next.js test-agents application
+│       ├── app/             # App router pages
+│       ├── components/      # Application-specific components
+│       └── public/          # Static assets
+├── packages/
+│   ├── ui/                  # Shared UI component library
+│   │   ├── src/
+│   │   │   ├── button.tsx
+│   │   │   ├── dropdown-menu.tsx
+│   │   │   ├── theme-provider.tsx
+│   │   │   ├── theme-switcher.tsx
+│   │   │   ├── globals.css
+│   │   │   └── lib/
+│   │   │       └── utils.ts
+│   │   └── package.json
+│   └── config/              # Shared configuration (future)
+├── package.json
+├── turbo.json
+└── pnpm-workspace.yaml
 ```
 
-## What You'll See
+## Features
 
-### Pricing Agent Output:
-```
-💰 Starting PricingAgent...
-✅ Connected to gateway
-🤝 Handshake complete!
+- **Next.js 15**: Latest Next.js with App Router
+- **Turborepo**: Fast, efficient monorepo build system
+- **Shared UI Library**: Reusable components across applications
+- **Theme Support**: Light/dark mode with theme switcher
+- **TypeScript**: Full type safety across the monorepo
+- **Tailwind CSS v4**: Latest Tailwind with enhanced features
+- **Radix UI**: Accessible, unstyled component primitives
+- **Geist Font**: Beautiful typography with Geist Sans and Mono
 
-🔔 Recruitment for loop: PriceCheck
-   ✅ ACCEPT
+## Learn More
 
-⚡ Executing loop: PriceCheck
-   💰 Calculated price: $87.43
+To learn more about Turborepo and the technologies used:
 
-✅ Loop complete!
-```
-
-### Inventory Agent Output:
-```
-📦 InventoryAgent connecting...
-✅ InventoryAgent connected!
-
-🔔 Recruited for loop: PriceCheck
-   ✓ We have stock for PROD-123
-
-⚡ Executing: PriceCheck
-   ✓ In stock: 50 units available
-
-✅ Loop complete!
-```
-
-### Scenario Output:
-```
-🎬 Starting Price Check Scenario...
-✅ Connected to gateway
-🚀 Initiating PriceCheck loop...
-
-📋 Recruitment complete: 2 participants
-
-✅ Loop Complete!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-{
-  "loopId": "demo-loop-1234567890",
-  "participantResults": [
-    {
-      "agent": "pricing-client-1",
-      "result": { "price": 87.43, "confidence": 0.95 }
-    },
-    {
-      "agent": "inventory-agent-1",
-      "result": { "available": 50, "canFulfill": true }
-    }
-  ],
-  "summary": {
-    "minPrice": 87.43,
-    "maxPrice": 87.43,
-    "avgPrice": 87.43
-  }
-}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Duration: 1247ms
-🎉 Demo complete!
-```
-
-## Key Concepts Demonstrated
-
-1. **Client/Agent Model**: Applications (clients) connect to the gateway and provide agents
-2. **Loop Coordination**: Gateway coordinates multi-agent workflows
-3. **Recruitment Phase**: Agents decide whether to participate
-4. **Execution Phase**: Participating agents execute in parallel
-5. **Aggregation**: Gateway combines results from all participants
-6. **Real-time Updates**: Web console shows live activity
-
-## Troubleshooting
-
-**Port already in use:**
-```bash
-# Kill process on port 8080
-lsof -ti:8080 | xargs kill -9
-
-# Kill process on port 3000
-lsof -ti:3000 | xargs kill -9
-```
-
-**Agents not connecting:**
-- Make sure gateway is running first
-- Check gateway logs for errors
-- Verify WebSocket URL is correct (ws://localhost:8080)
-
-**No output from scenario:**
-- Wait 3-5 seconds for agents to connect
-- Check that both agents show "Handshake complete"
-- Increase timeout in demo.js if needed
-
-## Next Steps
-
-- Add more agents with different capabilities
-- Create complex loop stacks (multi-step workflows)
-- Add authentication and authorization
-- Build service-to-service calls
-- Implement event-driven messaging
-
-## Architecture Details
-
-See the main project README for full architecture documentation.
+- [Turborepo Documentation](https://turbo.build/repo/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Tailwind CSS](https://tailwindcss.com)
+- [Radix UI](https://www.radix-ui.com)

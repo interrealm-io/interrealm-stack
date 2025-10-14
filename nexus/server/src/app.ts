@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 import helmet from 'helmet';
+import { createServer, Server as HttpServer } from 'http';
 import { logger } from './config/logger';
 import { errorMiddleware } from './middleware/error.middleware';
 import { corsMiddleware } from './middleware/cors.middleware';
@@ -7,6 +8,7 @@ import { consoleAuthMiddleware } from './middleware/auth.middleware';
 import authRouter from './controllers/auth.controller';
 import realmRouter from './controllers/realm.controller';
 import memberRouter from './controllers/member.controller';
+import { GatewayManager } from './gateway/gateway-manager';
 
 // TODO: Import additional routers when implemented
 // import bridgeRouter from './controllers/bridge.controller';
@@ -15,6 +17,10 @@ import memberRouter from './controllers/member.controller';
 // import adminRouter from './controllers/admin.controller';
 
 const app: Application = express();
+const httpServer: HttpServer = createServer(app);
+
+// Initialize Gateway Manager
+const gatewayManager = new GatewayManager(httpServer);
 
 // Middleware
 app.use(helmet());
@@ -52,4 +58,9 @@ app.use('/api/members', consoleAuthMiddleware, memberRouter);
 // Error handling
 app.use(errorMiddleware);
 
-export { app };
+// Start gateway
+gatewayManager.start().catch(error => {
+  logger.error('Failed to start gateway:', error);
+});
+
+export { app, httpServer, gatewayManager };

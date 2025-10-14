@@ -55,8 +55,14 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       prisma.realm.count({ where }),
     ]);
 
+    // Map Prisma's parentId to parentRealmId for the DTO
+    const mappedRealms = realms.map((realm) => ({
+      ...realm,
+      parentRealmId: realm.parentId,
+    }));
+
     const response: RealmListResponseDTO = {
-      realms: realms as any, // Type assertion for now, will map properly
+      realms: mappedRealms as any,
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -103,7 +109,13 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       return;
     }
 
-    res.json(realm as unknown as RealmResponseDTO);
+    // Map Prisma's parentId to parentRealmId for the DTO
+    const mappedRealm = {
+      ...realm,
+      parentRealmId: realm.parentId,
+    };
+
+    res.json(mappedRealm as unknown as RealmResponseDTO);
   } catch (error) {
     next(error);
   }
@@ -172,7 +184,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
     logger.info('Realm created successfully', { realmId: realm.realmId, id: realm.id });
 
-    res.status(201).json(realm as RealmResponseDTO);
+    // Map Prisma's parentId to parentRealmId for the DTO
+    const mappedRealm = {
+      ...realm,
+      parentRealmId: realm.parentId,
+    };
+
+    res.status(201).json(mappedRealm as RealmResponseDTO);
   } catch (error) {
     if (error instanceof ZodError) {
       logger.error('Invalid realm data', { errors: error.errors });
@@ -228,7 +246,13 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     logger.info('Realm updated successfully', { id });
 
-    res.json(realm as unknown as RealmResponseDTO);
+    // Map Prisma's parentId to parentRealmId for the DTO
+    const mappedRealm = {
+      ...realm,
+      parentRealmId: realm.parentId,
+    };
+
+    res.json(mappedRealm as unknown as RealmResponseDTO);
   } catch (error) {
     if (error instanceof ZodError) {
       logger.error('Invalid update data', { errors: error.errors });
