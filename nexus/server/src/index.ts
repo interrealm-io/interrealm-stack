@@ -6,6 +6,17 @@ const PORT = config.port || 3000;
 
 async function bootstrap() {
   try {
+    // Handle server startup errors (like EADDRINUSE)
+    httpServer.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${PORT} is already in use. Kill the process using: lsof -ti:${PORT} | xargs kill -9`);
+        process.exit(1);
+      } else {
+        logger.error('Server error:', error);
+        process.exit(1);
+      }
+    });
+
     httpServer.listen(PORT, () => {
       logger.info(`InterRealm Nexus started on port ${PORT}`);
       logger.info(`WebSocket gateway available at ws://localhost:${PORT}/gateway`);
@@ -32,6 +43,17 @@ async function bootstrap() {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // Handle uncaught errors that could leave server running
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught exception:', error);
+      shutdown('UNCAUGHT_EXCEPTION');
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+      shutdown('UNHANDLED_REJECTION');
+    });
 
   } catch (error) {
     logger.error('Failed to start server:', error);

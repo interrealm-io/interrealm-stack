@@ -2,6 +2,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Throw error for missing required environment variables
+ */
+function throwMissingEnv(varName: string): never {
+  throw new Error(`Missing required environment variable: ${varName}`);
+}
+
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
@@ -15,17 +22,17 @@ export const config = {
 
   // WebSocket
   websocket: {
-    port: parseInt(process.env.WS_PORT || '8080', 10),
+    port: parseInt(process.env.WS_PORT || '3001', 10),
     pingInterval: parseInt(process.env.WS_PING_INTERVAL || '30000', 10),
     pongTimeout: parseInt(process.env.WS_PONG_TIMEOUT || '5000', 10),
   },
 
   // Auth
   auth: {
-    jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
-    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    jwtSecret: process.env.JWT_SECRET || throwMissingEnv('JWT_SECRET'),
+    jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '24h') as string,
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
-    consoleApiKey: process.env.CONSOLE_API_KEY || 'nexus-console-key-change-in-production',
+    consoleApiKey: process.env.CONSOLE_API_KEY || throwMissingEnv('CONSOLE_API_KEY'),
   },
 
   // Logging

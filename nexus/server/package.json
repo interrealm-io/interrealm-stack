@@ -4,6 +4,7 @@
   "description": "InterRealm Nexus Server - WebSocket and REST server for realm mesh architecture",
   "main": "dist/index.js",
   "scripts": {
+    "predev": "lsof -ti:5000 | xargs kill -9 2>/dev/null || true",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
@@ -15,6 +16,7 @@
     "prisma:studio": "prisma studio",
     "generate:types": "ts-node scripts/generate-types.ts",
     "seed": "ts-node scripts/seed-database.ts",
+    "kill-port": "lsof -ti:5000 | xargs kill -9 || echo 'No process found on port 5000'",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix"
   },

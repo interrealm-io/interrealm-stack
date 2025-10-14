@@ -78,7 +78,10 @@ export class BridgeManager extends EventEmitter {
       // Add JWT token as query parameter for WebSocket authentication
       const gatewayUrlWithAuth = `${config.gatewayUrl}?token=${this.jwtToken}`;
 
-      this.ws = new WebSocket(gatewayUrlWithAuth);
+      // Disable perMessageDeflate to avoid bufferUtil issues
+      this.ws = new WebSocket(gatewayUrlWithAuth, {
+        perMessageDeflate: false
+      });
 
       const connectionTimeout = setTimeout(() => {
         reject(new Error('WebSocket connection timeout'));

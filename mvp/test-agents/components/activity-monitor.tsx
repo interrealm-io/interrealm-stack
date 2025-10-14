@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { useAgentActivity } from '@/lib/agent-activity-context';
 
 interface ActivityEvent {
   timestamp: string;
@@ -16,22 +16,22 @@ interface ActivityEvent {
   data?: any;
 }
 
-export default function MonitorPage() {
+export function ActivityMonitor() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isEnabled, setIsEnabled] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { highlightAgent } = useAgentActivity();
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3000/monitor');
+    const ws = new WebSocket('ws://localhost:5000/monitor');
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log('Monitor connected');
       setIsConnected(true);
-      // Request status
       ws.send(JSON.stringify({ command: 'status' }));
     };
 
@@ -39,7 +39,13 @@ export default function MonitorPage() {
       const data = JSON.parse(event.data);
 
       if (data.type === 'event') {
-        setEvents(prev => [...prev, data.event].slice(-200)); // Keep last 200
+        const newEvent = data.event;
+        setEvents(prev => [...prev, newEvent].slice(-200));
+
+        // Highlight agent card when activity is detected
+        if (newEvent.memberId) {
+          highlightAgent(newEvent.memberId);
+        }
       } else if (data.type === 'history') {
         setEvents(data.events);
       } else if (data.type === 'status') {
@@ -105,32 +111,31 @@ export default function MonitorPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-black text-green-400 font-mono">
+    <div className="flex h-full flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-green-800 p-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Nexus Activity Monitor</h1>
-          <Badge variant={isConnected ? 'default' : 'destructive'}>
-            {isConnected ? '● Connected' : '○ Disconnected'}
-          </Badge>
-          <Badge variant={isEnabled ? 'default' : 'secondary'}>
-            {isEnabled ? 'Monitoring Enabled' : 'Monitoring Disabled'}
+      <div className="flex items-center justify-between border-b p-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold">Activity Monitor</h2>
+          <Badge variant={isConnected ? 'default' : 'destructive'} className="text-xs">
+            {isConnected ? '●' : '○'}
           </Badge>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
             onClick={toggleMonitoring}
             disabled={!isConnected}
             variant="outline"
             size="sm"
+            className="h-7 px-2 text-xs"
           >
-            {isEnabled ? 'Disable' : 'Enable'}
+            {isEnabled ? 'Pause' : 'Resume'}
           </Button>
           <Button
             onClick={clearEvents}
             variant="outline"
             size="sm"
+            className="h-7 px-2 text-xs"
           >
             Clear
           </Button>
@@ -138,57 +143,52 @@ export default function MonitorPage() {
             onClick={() => setAutoScroll(!autoScroll)}
             variant={autoScroll ? 'default' : 'outline'}
             size="sm"
+            className="h-7 px-2 text-xs"
           >
-            Auto-scroll
+            Auto
           </Button>
         </div>
       </div>
 
       {/* Stats Bar */}
-      <div className="flex gap-6 border-b border-green-800 px-4 py-2 text-sm">
+      <div className="flex gap-4 border-b px-3 py-1.5 text-xs text-muted-foreground">
         <span>Events: {events.length}</span>
         <span>Connections: {events.filter(e => e.type === 'connection').length}</span>
-        <span>Events Pub: {events.filter(e => e.type === 'event').length}</span>
         <span>Errors: {events.filter(e => e.type === 'error').length}</span>
       </div>
 
       {/* Event Stream */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full p-4">
-          <div ref={scrollRef} className="space-y-1">
+        <ScrollArea className="h-full">
+          <div ref={scrollRef} className="space-y-0.5 p-2">
             {events.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
+              <div className="py-8 text-center text-sm text-muted-foreground">
                 Waiting for activity...
               </div>
             ) : (
               events.map((event, i) => (
                 <div
                   key={i}
-                  className="group flex gap-3 rounded px-2 py-1 hover:bg-green-950/30"
+                  className="group flex gap-2 rounded px-2 py-1 text-xs hover:bg-muted/50"
                 >
-                  <span className="text-gray-600 w-32 flex-shrink-0">
+                  <span className="text-muted-foreground w-20 flex-shrink-0 font-mono">
                     {new Date(event.timestamp).toLocaleTimeString('en-US', {
                       hour12: false,
                       hour: '2-digit',
                       minute: '2-digit',
                       second: '2-digit'
-                    })}.{String(new Date(event.timestamp).getMilliseconds()).padStart(3, '0')}
+                    })}
                   </span>
 
                   <Badge
-                    className={`${getTypeColor(event.type)} w-24 flex-shrink-0 justify-center font-mono text-xs`}
+                    className={`${getTypeColor(event.type)} w-20 flex-shrink-0 justify-center font-mono text-[10px]`}
                     variant="outline"
                   >
-                    {event.type.toUpperCase()}
+                    {event.type.toUpperCase().substring(0, 8)}
                   </Badge>
 
-                  <span className="flex-1">
+                  <span className="flex-1 truncate">
                     <span className={getLevelColor(event.level)}>{event.message}</span>
-                    {event.memberId && (
-                      <span className="ml-2 text-xs text-gray-600">
-                        [{event.memberId}]
-                      </span>
-                    )}
                   </span>
                 </div>
               ))

@@ -12,6 +12,11 @@ router.post('/token', async (req: Request, res: Response) => {
   try {
     const { apiToken } = req.body;
 
+    logger.info('=== AUTH TOKEN REQUEST ===');
+    logger.info(`Received API token: ${apiToken ? `${apiToken.substring(0, 8)}...` : 'undefined'}`);
+    logger.info(`Token length: ${apiToken?.length || 0}`);
+    logger.info(`Request body keys: ${JSON.stringify(Object.keys(req.body))}`);
+
     if (!apiToken) {
       return res.status(400).json({
         success: false,

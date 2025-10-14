@@ -8,17 +8,35 @@ import type { Realm, Member } from './types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_NEXUS_API_URL || 'http://localhost:3000/api';
 
 /**
+ * Get JWT token from session storage
+ * This token was obtained during login via the AuthContext
+ */
+function getJwtToken(): string {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    throw new Error('API calls must be made from the browser');
+  }
+
+  // Get token from session storage (set by AuthContext during login)
+  const token = sessionStorage.getItem('nexusJwtToken');
+
+  if (!token) {
+    throw new Error('Not authenticated. Please login first.');
+  }
+
+  return token;
+}
+
+/**
  * Get authentication headers
- * Uses console API key for authentication
+ * Uses JWT token from session storage (obtained during login)
  */
 function getAuthHeaders(): Record<string, string> {
-  // For now, use the console API key directly
-  // In production, this should be handled by a backend proxy or middleware
-  const consoleApiKey = process.env.NEXT_PUBLIC_CONSOLE_API_KEY || 'nexus-console-key-change-in-production';
+  const token = getJwtToken();
 
   return {
     'Content-Type': 'application/json',
-    'Authorization': consoleApiKey,
+    'Authorization': `Bearer ${token}`,
   };
 }
 

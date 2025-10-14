@@ -34,7 +34,7 @@ The following environment variables are configured in `nexus/server/.env`:
 # Auth Configuration
 JWT_SECRET=nexus-jwt-secret-change-in-production
 JWT_EXPIRES_IN=24h
-CONSOLE_API_KEY=nexus-console-key-change-in-production
+CONSOLE_API_KEY=mvp-key
 
 # Server Configuration
 PORT=3000
@@ -44,7 +44,7 @@ PORT=3000
 
 ### Default API Key
 
-The default API key is: `nexus-console-key-change-in-production`
+The default API key is: `mvp-key`
 
 ## API Endpoints
 
@@ -55,7 +55,7 @@ Exchange an API key for a JWT token.
 **Request:**
 ```json
 {
-  "apiToken": "nexus-console-key-change-in-production"
+  "apiToken": "mvp-key"
 }
 ```
 
@@ -124,7 +124,7 @@ You can test the endpoint directly using curl:
 ```bash
 curl -X POST http://localhost:3000/api/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"apiToken":"nexus-console-key-change-in-production"}'
+  -d '{"apiToken":"mvp-key"}'
 ```
 
 You should receive a JWT token in the response.
@@ -144,7 +144,7 @@ The console will start on http://localhost:3002
 
 1. Open http://localhost:3002 in your browser
 2. You should be redirected to the login page
-3. Enter the API key: `nexus-console-key-change-in-production`
+3. Enter the API key: `mvp-key`
 4. Click "Sign In"
 5. You should be redirected to the dashboard
 

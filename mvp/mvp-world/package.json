@@ -1,0 +1,28 @@
+{
+  "name": "mvp-world",
+  "version": "1.0.0",
+  "description": "InterRealm SDK agents - Clean TypeScript Node.js implementation",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist node_modules"
+  },
+  "keywords": ["interrealm", "sdk", "agents", "websocket"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@interrealm/sdk": "file:../../sdk/node",
+    "ws": "^8.18.3",
+    "bufferutil": "^4.0.8",
+    "utf-8-validate": "^6.0.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -3,16 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5001",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start -p 5001",
+    "start": "node server.js",
     "lint": "next lint",
     "clean": "rm -rf .next node_modules",
     "test:ping-pong": "tsx test-ping-pong.ts"
   },
   "dependencies": {
-    "@interrealm/sdk": "file:../../sdk/node",
     "@hookform/resolvers": "^3.10.0",
+    "@interrealm/sdk": "file:../../sdk/node",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-avatar": "^1.1.2",
@@ -27,6 +27,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.4",
+    "@types/ws": "^8.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "geist": "latest",
@@ -38,6 +39,7 @@
     "react-hook-form": "^7.65.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "ws": "^8.18.3",
     "zod": "^3.25.67"
   },
   "devDependencies": {

@@ -4,7 +4,8 @@ import { PongAgent } from '../agents/pong-agent';
 
 interface AgentConfig {
   endpoint: string;
-  apiKey: string;
+  pingApiKey: string;
+  pongApiKey: string;
   realmId?: string;
 }
 
@@ -23,8 +24,11 @@ class AgentManager {
     }
 
     try {
-      // Determine realm ID from API key if not provided
-      const realmId = config.realmId || await this.resolveRealmFromApiKey(config.apiKey, config.endpoint);
+      // Use provided realm ID or fail if not provided
+      if (!config.realmId) {
+        throw new Error('realmId is required in config');
+      }
+      const realmId = config.realmId;
 
       // Create Ping Agent Realm
       const pingRealm = new Realm({
@@ -32,7 +36,7 @@ class AgentManager {
         memberId: `${realmId}/ping-agent`,
         serverUrl: config.endpoint.replace('/gateway', '').replace('ws://', 'http://').replace('wss://', 'https://'),
         gatewayUrl: config.endpoint,
-        apiKey: config.apiKey,
+        apiKey: config.pingApiKey,
         contractName: 'test.ping-pong',
         contractVersion: '1.0.0',
         autoDiscovery: false,
@@ -44,7 +48,7 @@ class AgentManager {
         memberId: `${realmId}/pong-agent`,
         serverUrl: config.endpoint.replace('/gateway', '').replace('ws://', 'http://').replace('wss://', 'https://'),
         gatewayUrl: config.endpoint,
-        apiKey: config.apiKey,
+        apiKey: config.pongApiKey,
         contractName: 'test.ping-pong',
         contractVersion: '1.0.0',
         autoDiscovery: false,
@@ -104,30 +108,6 @@ class AgentManager {
 
   isAgentRunning(agentId: string): boolean {
     return this.runningAgents.has(agentId);
-  }
-
-  private async resolveRealmFromApiKey(apiKey: string, endpoint: string): Promise<string> {
-    // For now, return a default realm ID
-    // In production, this would query the server to get the realm for the API key
-    try {
-      const serverUrl = endpoint.replace('/gateway', '').replace('ws://', 'http://').replace('wss://', 'https://');
-      const response = await fetch(`${serverUrl}/api/members/me`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resolve realm from API key');
-      }
-
-      const data = await response.json();
-      return data.realmId;
-    } catch (error) {
-      console.error('Failed to resolve realm from API key:', error);
-      // Fallback to a default realm
-      return 'test.realm';
-    }
   }
 }
 

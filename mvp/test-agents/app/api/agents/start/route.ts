@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!config.endpoint || !config.apiKey) {
+    if (!config.endpoint || !config.pingApiKey || !config.pongApiKey || !config.realmId) {
       return NextResponse.json(
-        { error: 'Missing endpoint or apiKey in config' },
+        { error: 'Missing endpoint, pingApiKey, pongApiKey, or realmId in config' },
         { status: 400 }
       );
     }

@@ -23,7 +23,16 @@ export class AuthService {
    */
   async authenticateWithApiKey(apiKey: string): Promise<string> {
     try {
+      logger.info('=== AUTHENTICATE WITH API KEY ===');
+      logger.info(`Received API key: ${apiKey.substring(0, 8)}...`);
+      logger.info(`API key length: ${apiKey.length}`);
+
       // First, check if it's the console API key
+      const consoleKey = config.auth.consoleApiKey;
+      logger.info(`Console API key from config: ${consoleKey ? `${consoleKey.substring(0, 8)}...` : 'undefined'}`);
+      logger.info(`Console API key length: ${consoleKey?.length || 0}`);
+      logger.info(`Keys match console: ${apiKey === consoleKey}`);
+
       if (apiKey === config.auth.consoleApiKey) {
         const jwtToken = await this.jwtProvider.authenticate({
           subject: 'nexus-console',
@@ -34,6 +43,7 @@ export class AuthService {
       }
 
       // Otherwise, look up member by API key
+      logger.info('Not console key, searching for member...');
       const member = await prisma.member.findFirst({
         where: {
           authType: 'api-key',
@@ -47,7 +57,15 @@ export class AuthService {
         }
       });
 
+      logger.info(`Member found: ${member ? 'YES' : 'NO'}`);
+      if (member) {
+        logger.info(`Member ID: ${member.id}`);
+        logger.info(`Member authConfig: ${JSON.stringify(member.authConfig)}`);
+      }
+
       if (!member) {
+        logger.error('=== API KEY NOT FOUND ===');
+        logger.error(`Searched for key: ${apiKey.substring(0, 8)}...`);
         throw new Error('Invalid API key');
       }
 

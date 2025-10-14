@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 
 export interface AgentConfig {
   endpoint: string;
-  apiKey: string;
+  pingApiKey: string;
+  pongApiKey: string;
   realmId?: string;
 }
 
@@ -33,8 +34,9 @@ export function AgentConfigDialog({
   onStart,
 }: AgentConfigDialogProps) {
   const [config, setConfig] = useState<AgentConfig>({
-    endpoint: "ws://localhost:3001/gateway",
-    apiKey: "",
+    endpoint: "ws://localhost:3000/gateway",
+    pingApiKey: "",
+    pongApiKey: "",
     realmId: "",
   });
 
@@ -57,7 +59,7 @@ export function AgentConfigDialog({
             <Label htmlFor="endpoint">Gateway Endpoint</Label>
             <Input
               id="endpoint"
-              placeholder="ws://localhost:3001/gateway"
+              placeholder="ws://localhost:3000/gateway"
               value={config.endpoint}
               onChange={(e) =>
                 setConfig({ ...config, endpoint: e.target.value })
@@ -65,14 +67,26 @@ export function AgentConfigDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="apiKey">API Key</Label>
+            <Label htmlFor="pingApiKey">Ping Agent API Key</Label>
             <Input
-              id="apiKey"
+              id="pingApiKey"
               type="password"
-              placeholder="Enter your API key"
-              value={config.apiKey}
+              placeholder="Enter ping agent API key"
+              value={config.pingApiKey}
               onChange={(e) =>
-                setConfig({ ...config, apiKey: e.target.value })
+                setConfig({ ...config, pingApiKey: e.target.value })
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="pongApiKey">Pong Agent API Key</Label>
+            <Input
+              id="pongApiKey"
+              type="password"
+              placeholder="Enter pong agent API key"
+              value={config.pongApiKey}
+              onChange={(e) =>
+                setConfig({ ...config, pongApiKey: e.target.value })
               }
             />
           </div>
@@ -95,7 +109,7 @@ export function AgentConfigDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleStart} disabled={!config.apiKey}>
+          <Button onClick={handleStart} disabled={!config.pingApiKey || !config.pongApiKey}>
             Start Agent
           </Button>
         </DialogFooter>

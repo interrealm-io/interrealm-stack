@@ -40,7 +40,8 @@ export class GatewayManager {
     // Main gateway WebSocket server
     this.wss = new WebSocketServer({
       server: this.httpServer,
-      path: '/gateway'
+      path: '/gateway',
+      perMessageDeflate: false // Disable compression to avoid bufferUtil issues
     });
 
     this.wss.on('connection', async (ws: WebSocket, req) => {
@@ -92,7 +93,8 @@ export class GatewayManager {
     // Activity monitor WebSocket server (no auth required for debugging)
     this.monitorWss = new WebSocketServer({
       server: this.httpServer,
-      path: '/monitor'
+      path: '/monitor',
+      perMessageDeflate: false // Disable compression to avoid bufferUtil issues
     });
 
     this.monitorWss.on('connection', (ws: WebSocket) => {
