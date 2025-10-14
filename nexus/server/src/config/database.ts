@@ -1,4 +1,5 @@
 import { Pool, PoolConfig } from 'pg';
+import { PrismaClient } from '@prisma/client';
 import { config } from './environment';
 import { logger } from './logger';
 
@@ -18,6 +19,16 @@ pool.on('error', (err) => {
   logger.error('Unexpected database error:', err);
 });
 
+// Prisma Client instance
+export const prisma = new PrismaClient({
+  log: config.nodeEnv === 'development' ? ['query', 'error', 'warn'] : ['error'],
+});
+
+// Connect Prisma on initialization
+prisma.$connect()
+  .then(() => logger.info('Prisma Client connected'))
+  .catch((err) => logger.error('Prisma Client connection error:', err));
+
 export async function testDatabaseConnection(): Promise<boolean> {
   try {
     const client = await pool.connect();
@@ -32,6 +43,9 @@ export async function testDatabaseConnection(): Promise<boolean> {
 }
 
 export async function closeDatabaseConnection(): Promise<void> {
-  await pool.end();
-  logger.info('Database connection pool closed');
+  await Promise.all([
+    pool.end(),
+    prisma.$disconnect(),
+  ]);
+  logger.info('Database connections closed');
 }
