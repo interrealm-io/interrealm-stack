@@ -45,6 +45,12 @@ export class GatewayManager {
       clientTracking: true
     });
 
+    // Activity monitor WebSocket server (no auth required for debugging)
+    this.monitorWss = new WebSocketServer({
+      noServer: true,
+      perMessageDeflate: false // Disable compression to avoid bufferUtil issues
+    });
+
     // Manually handle WebSocket upgrades to prevent ANY compression negotiation
     this.httpServer.on('upgrade', (request, socket, head) => {
       const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
@@ -165,15 +171,34 @@ export class GatewayManager {
       }
     });
 
-    // Activity monitor WebSocket server (no auth required for debugging)
-    this.monitorWss = new WebSocketServer({
-      noServer: true,
-      perMessageDeflate: false // Disable compression to avoid bufferUtil issues
-    });
-
     this.monitorWss.on('connection', (ws: WebSocket) => {
       logger.info('Activity monitor client connected');
       this.activityMonitor.subscribe(ws);
+
+      // Start keep-alive mechanism for monitor - send ping every 30 seconds
+      const keepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping();
+        } else {
+          clearInterval(keepAliveInterval);
+        }
+      }, 30000);
+
+      // Handle pong responses
+      ws.on('pong', () => {
+        logger.debug('Monitor keep-alive pong received');
+      });
+
+      // Clean up on close
+      ws.on('close', () => {
+        clearInterval(keepAliveInterval);
+        logger.info('Monitor client disconnected');
+      });
+
+      ws.on('error', (error) => {
+        clearInterval(keepAliveInterval);
+        logger.error('Monitor WebSocket error:', error);
+      });
 
       // Handle monitor control messages
       ws.on('message', (data: Buffer) => {

@@ -113,7 +113,7 @@ export function RealmDetails({ realm, onRefresh }: RealmDetailsProps) {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Parent Realm</p>
-                    <p className="mt-1 text-sm">{realm.parentId || 'None (Root)'}</p>
+                    <p className="mt-1 text-sm">{realm.parentRealmId || 'None (Root)'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Inherit Policies</p>
@@ -127,13 +127,19 @@ export function RealmDetails({ realm, onRefresh }: RealmDetailsProps) {
 
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Policies</p>
-                  <div className="space-y-1">
-                    {realm.policies.map((policy, idx) => (
-                      <div key={idx} className="rounded bg-muted px-3 py-1.5 font-mono text-xs">
-                        {policy}
-                      </div>
-                    ))}
-                  </div>
+                  {realm.policies && realm.policies.length > 0 ? (
+                    <div className="space-y-1">
+                      {realm.policies.map((policy, idx) => (
+                        <div key={idx} className="rounded bg-muted px-3 py-1.5 font-mono text-xs">
+                          {policy}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                      No policies assigned
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

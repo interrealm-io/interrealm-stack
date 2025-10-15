@@ -139,10 +139,9 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
 
     return (
       <div key={node.id}>
-        <button
-          onClick={() => onSelectRealm(node.id)}
+        <div
           className={cn(
-            'group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-all',
+            'group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-all cursor-pointer',
             isSelected
               ? 'bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20'
               : 'text-foreground hover:bg-accent/50'
@@ -156,6 +155,7 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
                 toggleNode(node.id);
               }}
               className="flex h-4 w-4 items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
             >
               {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
@@ -165,17 +165,22 @@ export function RealmTree({ realms, selectedRealmId, onSelectRealm }: RealmTreeP
 
           <div className={cn('h-2 w-2 shrink-0 rounded-full', getStatusColor('active'))} />
 
-          <span className="text-base">{getRealmTypeIcon(node.realmType)}</span>
+          <button
+            onClick={() => onSelectRealm(node.id)}
+            className="flex flex-1 items-center gap-2 text-left"
+          >
+            <span className="text-base">{getRealmTypeIcon(node.realmType)}</span>
 
-          <span className="flex-1 truncate font-medium">{node.displayName}</span>
+            <span className="flex-1 truncate font-medium">{node.displayName}</span>
 
-          {node.memberCount > 0 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Users className="h-3 w-3" />
-              <span>{node.memberCount}</span>
-            </div>
-          )}
-        </button>
+            {node.memberCount > 0 && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                <span>{node.memberCount}</span>
+              </div>
+            )}
+          </button>
+        </div>
 
         {hasChildren && isExpanded && (
           <div className="mt-0.5">

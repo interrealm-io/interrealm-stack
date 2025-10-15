@@ -233,7 +233,7 @@ export function CreateMemberDialog({ open, onOpenChange, onMemberCreated, realmI
                 <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
                   <li>Copy the API key above and save it securely</li>
                   <li>Use the API key in your SDK client configuration</li>
-                  <li>Connect your client to the gateway at ws://localhost:3000</li>
+                  <li>Connect your client to the gateway at ws://localhost:3001</li>
                   <li>View connection status in the Nexus Console</li>
                 </ol>
               </div>

@@ -6,6 +6,8 @@ const PORT = config.port || 3000;
 
 async function bootstrap() {
   try {
+    logger.info('Hello World');
+
     // Handle server startup errors (like EADDRINUSE)
     httpServer.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {

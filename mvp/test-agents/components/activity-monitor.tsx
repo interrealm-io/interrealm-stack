@@ -26,7 +26,11 @@ export function ActivityMonitor() {
   const { highlightAgent } = useAgentActivity();
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:5000/monitor');
+    // Use environment variable for Nexus server URL, fallback to localhost:3001
+    const nexusWsUrl = process.env.NEXT_PUBLIC_NEXUS_WS_URL || 'ws://localhost:3001/gateway';
+    const monitorUrl = nexusWsUrl.replace('/gateway', '/monitor');
+
+    const ws = new WebSocket(monitorUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {

@@ -13,17 +13,30 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
+  console.log('[LoginPage] Component rendered', {
+    hasToken: !!apiToken,
+    tokenLength: apiToken.length,
+    isLoading,
+    hasError: !!error
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('[LoginPage] Form submitted');
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    console.log('[LoginPage] Starting login process');
+
     try {
       await login(apiToken);
+      console.log('[LoginPage] Login successful');
     } catch (err) {
+      console.error('[LoginPage] Login failed:', err);
       setError('Authentication failed. Please check your API token.');
       console.error(err);
     } finally {
+      console.log('[LoginPage] Login process completed');
       setIsLoading(false);
     }
   };
