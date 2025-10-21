@@ -10,3 +10,4 @@ export * from './loop';
 export * from './event';
 export * from './types';
 export * from './config/env';
+export * from './auth';

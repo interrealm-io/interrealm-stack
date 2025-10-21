@@ -1,0 +1,153 @@
+# RealmMesh Configuration Schema
+# Version: 2.0.0
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Mesh Configuration"
+description: "Configuration schema for RealmMesh gateway"
+
+type: object
+properties:
+  version:
+    type: string
+    description: "Schema version"
+    pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+  realms:
+    type: array
+    description: "Realm definitions"
+    items:
+      $ref: "#/definitions/Realm"
+
+  bridges:
+    type: array
+    description: "Bridge definitions"
+    items:
+      $ref: "#/definitions/Bridge"
+
+  policies:
+    type: array
+    description: "Policy definitions"
+    items:
+      $ref: "#/definitions/Policy"
+
+required:
+  - version
+
+definitions:
+  Realm:
+    type: object
+    properties:
+      id:
+        type: string
+        description: "Unique realm identifier"
+      name:
+        type: string
+        description: "Human-readable realm name"
+      realmType:
+        type: string
+        enum: [root, organization, tenant, department, team, user, service, environment, class, project, marketplace, family]
+      description:
+        type: string
+      parentId:
+        type: string
+        description: "Parent realm ID for hierarchy"
+      capabilities:
+        type: array
+        items:
+          $ref: "#/definitions/CapabilityRef"
+      members:
+        type: array
+        items:
+          $ref: "#/definitions/Member"
+      policies:
+        type: array
+        items:
+          type: string
+    required:
+      - id
+      - name
+
+  CapabilityRef:
+    type: object
+    properties:
+      name:
+        type: string
+      version:
+        type: string
+      access:
+        type: string
+        enum: [public, private, restricted]
+    required:
+      - name
+      - version
+
+  Member:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      memberType:
+        type: string
+        enum: [consumer, provider, agent-runtime, hybrid]
+      contractName:
+        type: string
+      contractVersion:
+        type: string
+    required:
+      - id
+      - name
+      - memberType
+
+  Bridge:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      sourceRealmId:
+        type: string
+      targetRealmId:
+        type: string
+      connectionType:
+        type: string
+        enum: [websocket, grpc, http, mqtt, kafka]
+      contract:
+        $ref: "#/definitions/BridgeContract"
+    required:
+      - id
+      - name
+      - sourceRealmId
+      - targetRealmId
+
+  BridgeContract:
+    type: object
+    properties:
+      sharedCapabilities:
+        type: array
+        items:
+          type: string
+      policies:
+        type: array
+        items:
+          type: string
+      bidirectional:
+        type: boolean
+        default: true
+
+  Policy:
+    type: object
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+        enum: [capability-access, rate-limit, audit, authentication, authorization, data-governance, custom]
+      config:
+        type: object
+        description: "Policy-specific configuration"
+    required:
+      - name
+      - type

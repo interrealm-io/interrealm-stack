@@ -1,0 +1,530 @@
+// RealmMesh Gateway - Complete Prisma Schema
+// Supports: Multi-tenant, User realms, Extensions, Bridges, Contracts, Policies
+// MVP 2 - Ready for production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Realms - Universal Isolation Boundary
+// ============================================
+model Realm {
+  id             String   @id @default(uuid()) @db.Uuid
+  realmId        String   @unique @map("realm_id") @db.VarChar(255)
+  parentId       String?  @map("parent_id") @db.Uuid
+  displayName    String?  @map("display_name") @db.VarChar(255)
+
+  realmType      String   @default("service") @map("realm_type") @db.VarChar(50)
+  // root, organization, tenant, department, team, user, service, environment,
+  // class, project, marketplace, family
+
+  description    String?  @db.Text
+
+  // Contract reference (composite contract for this realm)
+  contractName    String?  @map("contract_name") @db.VarChar(255)
+  contractVersion String?  @map("contract_version") @db.VarChar(50)
+
+  // Policies
+  policies        Json     @default("[]") @db.JsonB
+  // Array of policy names: ["rate-limit-default", "capability-access-finance"]
+
+  inheritPolicies Boolean  @default(true) @map("inherit_policies")
+
+  // Native agents (pre-installed for this realm type)
+  nativeAgents    Json     @default("[]") @map("native_agents") @db.JsonB
+  // Example: [{ "agentName": "personal-assistant", "contractName": "agent.assistant" }]
+
+  // Kubernetes resources (for realms that need k8s operators)
+  k8sResources    Json?    @map("k8s_resources") @db.JsonB
+  // Example: { "operator": "realm-operator", "namespace": "tenant-acme" }
+
+  // Extensions (alternative to metadata)
+  extensions      Json     @default("[]") @db.JsonB
+  // Array of extension configs
+
+  metadata        Json     @default("{}") @db.JsonB
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Self-referential relation for hierarchy
+  parent          Realm?   @relation("RealmHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Realm[]  @relation("RealmHierarchy")
+
+  // Relations
+  members         Member[]
+  routes          Route[]
+  bridges         Bridge[] @relation("RealmBridges")
+  bridgeRouteTargets Bridge[] @relation("BridgeRouteTarget")
+  connections     Connection[]
+  auditLogs       AuditLog[]     @relation("AuditSourceRealm")
+  targetLogs      AuditLog[]     @relation("AuditTargetRealm")
+  metrics         Metric[]
+  events          RealmEvent[]
+  snapshots       RealmSnapshot[]
+
+  @@index([parentId], name: "idx_realms_parent")
+  @@index([realmId], name: "idx_realms_realm_id")
+  @@index([realmType], name: "idx_realms_type")
+  @@index([contractName, contractVersion], name: "idx_realms_contract")
+  @@map("realms")
+}
+
+// ============================================
+// Realm Snapshots - Version Control
+// ============================================
+model RealmSnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  realmId         String   @map("realm_id") @db.Uuid
+  version         String   @db.VarChar(50) // Semantic version: 2.6.0, 3.0.0
+
+  // Full snapshot as structured data
+  snapshot        Json     @db.JsonB
+  // Complete realm configuration including members, bridges, policies, etc.
+
+  // Delta from previous version
+  previousVersion String?  @map("previous_version") @db.VarChar(50)
+  delta           Json?    @db.JsonB
+
+  breakingChanges Json     @default("[]") @db.JsonB
+  changeNotes     String?  @map("change_notes") @db.Text
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  createdBy       String?  @map("created_by") @db.VarChar(255)
+
+  realm           Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@unique([realmId, version])
+  @@index([realmId, createdAt], name: "idx_realm_snapshots_realm_time")
+  @@map("realm_snapshots")
+}
+
+// ============================================
+// Policy Definitions
+// ============================================
+model Policy {
+  name        String   @id @db.VarChar(100)
+  description String?  @db.Text
+
+  type        String   @db.VarChar(50)
+  // capability-access, rate-limit, audit, authentication, authorization,
+  // data-governance, custom
+
+  config      Json     @db.JsonB
+  // Policy-specific configuration (structure depends on type)
+
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([type], name: "idx_policies_type")
+  @@map("policies")
+}
+
+// ============================================
+// Capability Definitions
+// ============================================
+model Capability {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  version         String   @db.VarChar(50)
+
+  // Full capability definition (from capability.yaml)
+  definition      Json     @db.JsonB
+
+  // Extracted for querying
+  services        String[] @default([])
+  events          String[] @default([])
+  loops           String[] @default([])
+  loopStacks      String[] @default([]) @map("loop_stacks")
+
+  // Metadata
+  description     String?  @db.Text
+  author          String?  @db.VarChar(255)
+  tags            String[] @default([])
+  stability       String   @default("stable") @db.VarChar(50)
+  documentation   String?  @db.VarChar(500)
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@unique([name, version])
+  @@index([name], name: "idx_capabilities_name")
+  @@index([stability], name: "idx_capabilities_stability")
+  @@map("capabilities")
+}
+
+// ============================================
+// Members - Everything that connects to the mesh
+// ============================================
+model Member {
+  id            String    @id @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  realmId       String    @map("realm_id") @db.Uuid
+
+  memberType    String    @map("member_type") @db.VarChar(50)
+  // consumer, provider, agent-runtime, hybrid
+
+  // Contract reference
+  contractName    String?   @map("contract_name") @db.VarChar(255)
+  contractVersion String?   @map("contract_version") @db.VarChar(50)
+
+  // Authentication
+  authType      String    @default("api-key") @map("auth_type") @db.VarChar(50)
+  // api-key, oauth2, jwt, mtls, saml, custom
+
+  authConfig    Json      @db.JsonB
+  // Auth-specific configuration based on authType
+
+  // Connection state
+  connectionId  String?   @map("connection_id") @db.VarChar(255)
+  status        String    @default("offline") @db.VarChar(50)
+  // online, offline, away
+
+  lastConnected DateTime? @map("last_connected") @db.Timestamp(6)
+
+  // Metadata for extensions, integrations, custom config
+  metadata      Json      @default("{}") @db.JsonB
+
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  realm               Realm              @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  agents              MemberAgent[]
+  loopStatesInitiated LoopState[]        @relation("LoopInitiator")
+  loopParticipants    LoopParticipant[]
+  eventSubscriptions  EventSubscription[]
+
+  @@index([realmId], name: "idx_members_realm")
+  @@index([status], name: "idx_members_status")
+  @@index([memberType], name: "idx_members_type")
+  @@index([contractName, contractVersion], name: "idx_members_contract")
+  @@index([authType], name: "idx_members_auth_type")
+  @@map("members")
+}
+
+// ============================================
+// Member Agents
+// ============================================
+model MemberAgent {
+  id             String   @id @default(uuid()) @db.Uuid
+  memberId       String   @map("member_id") @db.VarChar(255)
+  agentName      String   @map("agent_name") @db.VarChar(255)
+
+  participatesIn String[] @map("participates_in")
+  // Loop names this agent participates in
+
+  skills         String[]
+  // Skills this agent has
+
+  metadata       Json     @default("{}") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, agentName])
+  @@index([memberId], name: "idx_member_agents_member")
+  @@index([agentName], name: "idx_member_agents_agent")
+  @@map("member_agents")
+}
+
+// ============================================
+// Routes - Capability-based routing
+// ============================================
+model Route {
+  id              String   @id @default(uuid()) @db.Uuid
+  routePattern    String   @map("route_pattern") @db.VarChar(500)
+
+  // Capability-based routing
+  capability      String   @db.VarChar(255)
+  operation       String?  @db.VarChar(100)
+
+  targetRealmId   String   @map("target_realm_id") @db.Uuid
+  targetMemberId  String?  @map("target_member_id") @db.VarChar(255)
+
+  priority        Int      @default(0)
+  active          Boolean  @default(true)
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  realm           Realm    @relation(fields: [targetRealmId], references: [id], onDelete: Cascade)
+
+  @@index([capability, operation], name: "idx_routes_capability")
+  @@index([routePattern], name: "idx_routes_pattern")
+  @@index([active], name: "idx_routes_active")
+  @@index([targetRealmId], name: "idx_routes_realm")
+  @@map("routes")
+}
+
+// ============================================
+// Bridges - Realm-to-realm connections with pluggable protocols
+// ============================================
+model Bridge {
+  id                     String    @id @default(uuid()) @db.Uuid
+  name                   String    @db.VarChar(255)
+
+  // Bridge belongs to a realm
+  realmId                String    @map("realm_id") @db.Uuid
+
+  // Pluggable connection type
+  connectionType         String    @default("websocket") @map("connection_type") @db.VarChar(50)
+  // websocket, grpc, http, mqtt, kafka, custom
+
+  remoteGatewayUrl       String    @map("remote_gateway_url") @db.VarChar(500)
+  bridgeKey              String    @map("bridge_key") @db.VarChar(512)
+
+  // Connection-specific configuration
+  connectionConfig       Json      @default("{}") @map("connection_config") @db.JsonB
+  // Example for grpc: { "tls": true, "cert": "...", "compression": "gzip" }
+  // Example for kafka: { "topic": "realm-bridge", "consumerGroup": "bridge-01" }
+
+  // Local side contract
+  localContractName      String    @map("local_contract_name") @db.VarChar(255)
+  localContractVersion   String    @map("local_contract_version") @db.VarChar(50)
+  localProvides          Json      @map("local_provides") @db.JsonB
+  // Array of { capability, providedBy }
+
+  localRequires          Json      @map("local_requires") @db.JsonB
+  // Array of { capability, version? }
+
+  // Remote side contract (captured from handshake)
+  remoteContractName     String?   @map("remote_contract_name") @db.VarChar(255)
+  remoteContractVersion  String?   @map("remote_contract_version") @db.VarChar(50)
+  remoteProvides         Json?     @map("remote_provides") @db.JsonB
+  remoteRequires         Json?     @map("remote_requires") @db.JsonB
+
+  // Compatibility state
+  compatible             Boolean   @default(false)
+  compatibilityErrors    Json      @default("[]") @map("compatibility_errors") @db.JsonB
+  compatibilityWarnings  Json      @default("[]") @map("compatibility_warnings") @db.JsonB
+  lastNegotiated         DateTime? @map("last_negotiated") @db.Timestamp(6)
+
+  // Routing
+  routeToRealmId         String    @map("route_to_realm_id") @db.Uuid
+
+  active                 Boolean   @default(true)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  realm                  Realm     @relation("RealmBridges", fields: [realmId], references: [id], onDelete: Cascade)
+  routeToRealm           Realm     @relation("BridgeRouteTarget", fields: [routeToRealmId], references: [id])
+  history                BridgeContractHistory[]
+
+  @@unique([realmId, name])
+  @@index([realmId], name: "idx_bridges_realm")
+  @@index([connectionType], name: "idx_bridges_connection_type")
+  @@index([compatible], name: "idx_bridges_compatible")
+  @@index([localContractName, localContractVersion], name: "idx_bridges_local_contract")
+  @@map("bridges")
+}
+
+// ============================================
+// Bridge Contract History
+// ============================================
+model BridgeContractHistory {
+  id                    String   @id @default(uuid()) @db.Uuid
+  bridgeId              String   @map("bridge_id") @db.Uuid
+
+  localContractVersion  String   @map("local_contract_version") @db.VarChar(50)
+  remoteContractVersion String   @map("remote_contract_version") @db.VarChar(50)
+
+  changeType            String   @map("change_type") @db.VarChar(50)
+  // established, local-minor, local-major, remote-minor, remote-major, broken
+
+  compatible            Boolean
+  negotiatedAt          DateTime @map("negotiated_at") @db.Timestamp(6)
+
+  bridge                Bridge   @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+
+  @@index([bridgeId, negotiatedAt], name: "idx_bridge_history")
+  @@map("bridge_contract_history")
+}
+
+// ============================================
+// Connection Sessions
+// ============================================
+model Connection {
+  id             String   @id @db.VarChar(255)
+  realmId        String   @map("realm_id") @db.Uuid
+
+  connectionType String   @default("websocket") @map("connection_type") @db.VarChar(50)
+  gatewayType    String   @default("internal") @map("gateway_type") @db.VarChar(50)
+
+  connectedAt    DateTime @default(now()) @map("connected_at") @db.Timestamp(6)
+  lastActivity   DateTime @default(now()) @map("last_activity") @db.Timestamp(6)
+
+  metadata       Json     @default("{}") @db.JsonB
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId], name: "idx_connections_realm")
+  @@map("connections")
+}
+
+// ============================================
+// Realm Events (pub/sub)
+// ============================================
+model RealmEvent {
+  realmId    String   @map("realm_id") @db.Uuid
+  eventTopic String   @map("event_topic") @db.VarChar(255)
+  eventType  String   @map("event_type") @db.VarChar(50)
+  // publisher, subscriber
+
+  metadata   Json     @default("{}") @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@id([realmId, eventTopic, eventType])
+  @@index([realmId], name: "idx_realm_events_realm")
+  @@index([eventTopic], name: "idx_realm_events_topic")
+  @@map("realm_events")
+}
+
+// ============================================
+// Loop States
+// ============================================
+model LoopState {
+  id                  String    @id @db.VarChar(255)
+  loopName            String    @map("loop_name") @db.VarChar(255)
+
+  // Realm scope for this loop
+  realmScope          String?   @map("realm_scope") @db.VarChar(255)
+  // Example: "tenant:acme-corp/user:john" - only agents in this realm tree can participate
+
+  capability          String?   @db.VarChar(255)
+  initiatorMemberId   String?   @map("initiator_member_id") @db.VarChar(255)
+
+  phase               String    @default("recruitment") @db.VarChar(50)
+  // recruitment, execution, aggregation, complete, failed
+
+  input               Json?     @db.JsonB
+  result              Json?     @db.JsonB
+
+  recruitmentTimeout  Int?      @map("recruitment_timeout")
+  executionTimeout    Int?      @map("execution_timeout")
+  minParticipants     Int?      @map("min_participants")
+  maxParticipants     Int?      @map("max_participants")
+
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamp(6)
+
+  initiatorMember Member?           @relation("LoopInitiator", fields: [initiatorMemberId], references: [id], onDelete: SetNull)
+  participants    LoopParticipant[]
+
+  @@index([phase], name: "idx_loop_states_phase")
+  @@index([realmScope], name: "idx_loop_states_realm_scope")
+  @@index([createdAt], name: "idx_loop_states_created")
+  @@map("loop_states")
+}
+
+// ============================================
+// Loop Participants
+// ============================================
+model LoopParticipant {
+  id                  String    @id @default(uuid()) @db.Uuid
+  loopId              String    @map("loop_id") @db.VarChar(255)
+  memberId            String    @map("member_id") @db.VarChar(255)
+  agentName           String    @map("agent_name") @db.VarChar(255)
+  participantId       String    @map("participant_id") @db.VarChar(512)
+  // Composite: memberId.agentName
+
+  status              String    @default("recruited") @db.VarChar(50)
+  // recruited, executing, complete, failed
+
+  joinedAt            DateTime  @default(now()) @map("joined_at") @db.Timestamp(6)
+  startedExecutionAt  DateTime? @map("started_execution_at") @db.Timestamp(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamp(6)
+
+  result              Json?     @db.JsonB
+  error               String?   @db.Text
+
+  loop   LoopState @relation(fields: [loopId], references: [id], onDelete: Cascade)
+  member Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([loopId, participantId])
+  @@index([loopId], name: "idx_loop_participants_loop")
+  @@index([memberId], name: "idx_loop_participants_member")
+  @@index([status], name: "idx_loop_participants_status")
+  @@map("loop_participants")
+}
+
+// ============================================
+// Event Subscriptions
+// ============================================
+model EventSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  memberId    String   @map("member_id") @db.VarChar(255)
+  topic       String   @db.VarChar(255)
+  handlerName String?  @map("handler_name") @db.VarChar(255)
+  filters     Json     @default("{}") @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, topic, handlerName])
+  @@index([memberId], name: "idx_event_subscriptions_member")
+  @@index([topic], name: "idx_event_subscriptions_topic")
+  @@map("event_subscriptions")
+}
+
+// ============================================
+// Audit Log
+// ============================================
+model AuditLog {
+  id             String    @id @default(uuid()) @db.Uuid
+  timestamp      DateTime  @default(now()) @db.Timestamp(6)
+
+  sourceRealmId  String?   @map("source_realm_id") @db.Uuid
+  targetRealmId  String?   @map("target_realm_id") @db.Uuid
+
+  fromRealm      String?   @map("from_realm") @db.VarChar(255)
+  toRealm        String?   @map("to_realm") @db.VarChar(255)
+
+  messageType    String?   @map("message_type") @db.VarChar(100)
+  operation      String?   @db.VarChar(100)
+  capability     String?   @db.VarChar(255)
+  service        String?   @db.VarChar(255)
+
+  payloadSize    Int?      @map("payload_size")
+  status         String?   @db.VarChar(50)
+  success        Boolean?
+  latencyMs      Int?      @map("latency_ms")
+  errorMessage   String?   @map("error_message") @db.Text
+
+  metadata       Json      @default("{}") @db.JsonB
+
+  sourceRealm Realm? @relation("AuditSourceRealm", fields: [sourceRealmId], references: [id], onDelete: SetNull)
+  targetRealm Realm? @relation("AuditTargetRealm", fields: [targetRealmId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp(sort: Desc)], name: "idx_audit_timestamp")
+  @@index([sourceRealmId], name: "idx_audit_source_realm")
+  @@index([targetRealmId], name: "idx_audit_target_realm")
+  @@index([capability], name: "idx_audit_capability")
+  @@map("audit_log")
+}
+
+// ============================================
+// Metrics
+// ============================================
+model Metric {
+  id         String   @id @default(uuid()) @db.Uuid
+  metricType String   @map("metric_type") @db.VarChar(100)
+  realmId    String?  @map("realm_id") @db.Uuid
+  value      Decimal? @db.Decimal
+  timestamp  DateTime @default(now()) @db.Timestamp(6)
+  metadata   Json     @default("{}") @db.JsonB
+
+  realm Realm? @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([timestamp], name: "idx_metrics_timestamp")
+  @@index([metricType, realmId], name: "idx_metrics_type_realm")
+  @@map("metrics")
+}

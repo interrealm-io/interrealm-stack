@@ -30,29 +30,36 @@ export class Realm extends EventEmitter {
       throw new Error('Realm already initialized');
     }
 
-    console.log(`Initializing realm: ${this.config.realmId}`);
+    console.log(`Initializing member: ${this.config.memberId}`);
+    console.log(`  Realm: ${this.config.realmId}`);
+    console.log(`  Contract: ${this.config.contractName}@${this.config.contractVersion || 'latest'}`);
 
-    // 1. Connect to the gateway
-    await this.bridgeManager.connect(this.config.routingUrl);
-
-    // 2. Scan for annotated components if auto-discovery enabled
+    // 1. Scan for annotated components if auto-discovery enabled
     if (this.config.autoDiscovery) {
+      console.log('Step 1: Discovering components...');
       await this.discoverComponents();
     }
 
-    // 3. Register all services
+    // 2. Register all services
+    console.log('Step 2: Registering services...');
     await this.serviceRegistry.registerAll();
 
-    // 4. Register all agents
+    // 3. Register all agents
+    console.log('Step 3: Registering agents...');
     await this.agentRegistry.registerAll();
 
+    // 4. Connect to the gateway (with auth, capability scanning, and handshake)
+    console.log('Step 4: Connecting to Nexus gateway...');
+    await this.bridgeManager.connect();
+
     // 5. Start event bus
+    console.log('Step 5: Starting event bus...');
     await this.eventBus.start();
 
     this.initialized = true;
     this.emit('ready');
 
-    console.log(`Realm ${this.config.realmId} is ready`);
+    console.log(`✓ Member ${this.config.memberId} is ready`);
   }
 
   private async discoverComponents(): Promise<void> {
@@ -70,6 +77,37 @@ export class Realm extends EventEmitter {
     this.emit('shutdown');
   }
 
+  /**
+   * Register an agent instance and set up its event handlers
+   * This is useful when not using autoDiscovery
+   */
+  registerAgentInstance(agentInstance: any): void {
+    const { getEventHandlers } = require('../decorators/EventHandler');
+    const handlers = getEventHandlers(agentInstance.constructor);
+
+    for (const handler of handlers) {
+      const { capability, eventName, topic, filters, methodName } = handler;
+
+      if (!methodName) continue;
+
+      // Subscribe to the event via EventBus
+      this.eventBus.subscribe({
+        capability,
+        eventName,
+        topic,
+        filters,
+        handler: async (payload: any) => {
+          const method = agentInstance[methodName];
+          if (typeof method === 'function') {
+            await method.call(agentInstance, payload);
+          }
+        }
+      });
+
+      console.log(`Registered event handler: ${capability}.${eventName} on ${topic} -> ${methodName}`);
+    }
+  }
+
   getServiceRegistry(): ServiceRegistry { return this.serviceRegistry; }
   getAgentRegistry(): AgentRegistry { return this.agentRegistry; }
   getEventBus(): EventBus { return this.eventBus; }
@@ -78,13 +116,19 @@ export class Realm extends EventEmitter {
 
   private validateConfig(config: RealmConfig): RealmConfig {
     if (!config.realmId) throw new Error('realmId is required');
-    if (!config.routingUrl) throw new Error('routingUrl is required');
+    if (!config.memberId) throw new Error('memberId is required');
+    if (!config.serverUrl) throw new Error('serverUrl is required');
+    if (!config.gatewayUrl) throw new Error('gatewayUrl is required');
+    if (!config.apiKey) throw new Error('apiKey is required');
+
     return {
       ...config,
       autoDiscovery: config.autoDiscovery ?? true,
       componentPaths: config.componentPaths || ['./src/**/*.ts'],
       logging: config.logging || { level: 'info' },
-      retry: config.retry || { maxAttempts: 3, backoffMs: 1000 }
+      retry: config.retry || { maxAttempts: 3, backoffMs: 1000 },
+      authTimeout: config.authTimeout || 10000,
+      connectionTimeout: config.connectionTimeout || 15000,
     };
   }
 }

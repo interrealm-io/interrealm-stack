@@ -1,0 +1,118 @@
+.policy-editor {
+  background: rgba(0, 20, 40, 0.6);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.policy-editor h3 {
+  color: #00ff00;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.policy-editor form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.policy-editor select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #00ff0040;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.policy-editor select:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+}
+
+.policy-editor select option {
+  background: #001020;
+  color: #00ff00;
+}
+
+.policy-editor textarea {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #00ff0040;
+  border-radius: 4px;
+  padding: 12px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.policy-editor textarea:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+}
+
+.policy-editor textarea.error {
+  border-color: #ff4444;
+}
+
+.policy-editor .error-text {
+  color: #ff4444;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.policy-examples {
+  margin-top: 8px;
+}
+
+.policy-examples details {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #00ff0020;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.policy-examples summary {
+  color: #00ff00;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.policy-examples summary:hover {
+  color: #00dd00;
+}
+
+.examples-content {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.examples-content h4 {
+  color: #00ff0080;
+  font-size: 12px;
+  margin: 8px 0 4px 0;
+  font-weight: 600;
+}
+
+.examples-content pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #00ff0020;
+  border-radius: 4px;
+  padding: 8px;
+  color: #00ff0080;
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 0;
+}

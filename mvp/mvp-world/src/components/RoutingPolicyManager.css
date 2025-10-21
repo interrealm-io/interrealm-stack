@@ -1,0 +1,337 @@
+.routing-policy-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(0, 10, 20, 0.8);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.manager-header {
+  background: rgba(0, 20, 40, 0.9);
+  border-bottom: 2px solid #00ff00;
+  padding: 16px 24px;
+}
+
+.manager-header h2 {
+  color: #00ff00;
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid #00ff0040;
+  border-radius: 4px;
+  padding: 8px 16px;
+  color: #00ff0080;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background: rgba(0, 255, 0, 0.05);
+  border-color: #00ff0060;
+  color: #00ff00;
+}
+
+.tab.active {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  color: #00ff00;
+  font-weight: 600;
+}
+
+.routes-panel,
+.policies-panel {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.btn-create {
+  background: #00ff00;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-create:hover {
+  background: #00dd00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+/* Routes List */
+.routes-list,
+.policies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.route-card,
+.policy-card {
+  background: rgba(0, 20, 40, 0.5);
+  border: 1px solid #00ff0040;
+  border-radius: 6px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.route-card:hover,
+.policy-card:hover {
+  border-color: #00ff0080;
+  background: rgba(0, 20, 40, 0.7);
+}
+
+.route-card.inactive {
+  opacity: 0.5;
+  border-color: #00ff0020;
+}
+
+.route-header,
+.policy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.route-info,
+.policy-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.route-pattern {
+  color: #00ff00;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.route-capability {
+  color: #00ff0080;
+  font-size: 13px;
+}
+
+.route-operation {
+  color: #00ff00;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.route-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priority-badge {
+  background: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: 1px solid #00ff0040;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  color: #00ff00;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-btn:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+}
+
+.toggle-btn.inactive {
+  color: #00ff0040;
+}
+
+.route-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.detail-item {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.detail-item .label {
+  color: #00ff0060;
+  min-width: 100px;
+}
+
+.detail-item .value {
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+}
+
+.route-actions,
+.policy-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid #00ff0020;
+  padding-top: 12px;
+}
+
+.btn-edit,
+.btn-delete {
+  background: transparent;
+  border: 1px solid #00ff0040;
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+}
+
+.btn-delete {
+  border-color: #ff444440;
+  color: #ff4444;
+}
+
+.btn-delete:hover {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #ff4444;
+}
+
+/* Policy Specific */
+.policy-name {
+  color: #00ff00;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.policy-type {
+  background: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.policy-description {
+  color: #00ff0080;
+  font-size: 12px;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.policy-config details {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #00ff0020;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+
+.policy-config summary {
+  color: #00ff00;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.policy-config summary:hover {
+  color: #00dd00;
+}
+
+.policy-config pre {
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #00ff0020;
+  border-radius: 4px;
+  padding: 8px;
+  color: #00ff0080;
+  font-size: 11px;
+  overflow-x: auto;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-state p {
+  color: #00ff0080;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.empty-state p.hint {
+  color: #00ff0060;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Scrollbar styling */
+.routes-panel::-webkit-scrollbar,
+.policies-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.routes-panel::-webkit-scrollbar-track,
+.policies-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.routes-panel::-webkit-scrollbar-thumb,
+.policies-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+}
+
+.routes-panel::-webkit-scrollbar-thumb:hover,
+.policies-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+}
