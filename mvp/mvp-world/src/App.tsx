@@ -34,7 +34,7 @@ function App() {
     console.log('🔄 Initiating WebSocket connection...');
 
     try {
-      const ws = new WebSocket('ws://localhost:3001/monitor');
+      const ws = new WebSocket('ws://localhost:4000/monitor');
 
       ws.onopen = () => {
         console.log('✅ Connected to nexus monitor');
@@ -216,7 +216,7 @@ function App() {
               {events.length === 0 && (
                 <div className="welcome">
                   <p>Waiting for events from Nexus server...</p>
-                  <p className="hint">Make sure the Nexus server is running on port 3001</p>
+                  <p className="hint">Make sure the Nexus server is running on port 4000</p>
                 </div>
               )}
               {events.map((event, index) => (
@@ -238,7 +238,7 @@ function App() {
 
           <div className="footer">
             <span>InterRealm Nexus Activity Monitor v1.0</span>
-            <span>ws://localhost:3001/monitor</span>
+            <span>ws://localhost:4000/monitor</span>
           </div>
         </div>
       )}

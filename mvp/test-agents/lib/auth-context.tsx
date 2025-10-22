@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (apiToken: string) => {
     try {
       // Call nexus/server auth endpoint to exchange API token for JWT
-      const response = await fetch('http://localhost:3001/api/auth/token', {
+      const response = await fetch('http://localhost:4000/api/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -24,6 +24,29 @@ make broker-dev
 make console-dev
 ```
 
+## Nexus Gateway Setup
+
+Nexus is the next-generation gateway. To set it up:
+
+```bash
+# Generate environment files
+make env-nexus          # Creates nexus/server/.env
+make env-nexus-console  # Creates nexus/console/.env.local
+
+# Or generate all at once
+make env-setup
+
+# Start database and apply schema
+make nexus-db-up
+make nexus-db-setup
+
+# Start services
+make nexus-dev          # Terminal 1: Nexus server
+# Open nexus/console and run: npm run dev  # Terminal 2: Nexus console
+```
+
+The Nexus console will be available at http://localhost:4001
+
 ## Run the Full MVP Demo
 
 Want to see everything in action? One command:
@@ -74,8 +97,10 @@ The Makefile auto-generates `.env` files, but if you need to regenerate them:
 ```bash
 make env-setup           # Generates all .env files
 make env-broker          # Just broker .env
-make env-console         # Just console .env.local
+make env-console         # Just broker console .env.local
 make env-mvp             # Just mvp .env
+make env-nexus           # Just nexus server .env
+make env-nexus-console   # Just nexus console .env.local
 ```
 
 All configuration is in the `Makefile` (lines 22-52), so you can customize:
@@ -89,7 +114,14 @@ All configuration is in the `Makefile` (lines 22-52), so you can customize:
 Reset the database and reapply schema:
 
 ```bash
+# Broker database
 make broker-db-reset
+
+# Nexus database
+make nexus-db-reset
+
+# Nuclear option: Destroy ALL databases
+make db-nuke-all
 ```
 
 This will:
@@ -102,30 +134,55 @@ This will:
 
 All non-sensitive configuration is stored in the Makefile:
 
+### Broker Configuration
 | Variable | Default | What it's for |
 |----------|---------|---------------|
-| DB_PORT | 5433 | PostgreSQL port |
+| DB_PORT | 5433 | Broker PostgreSQL port |
 | ADMIN_PORT | 3001 | Broker admin API |
 | INTERNAL_PORT | 8080 | Internal broker (realms) |
 | EXTERNAL_PORT | 8443 | External broker (partners) |
-| CONSOLE_PORT | 3000 | Web console UI |
+| CONSOLE_PORT | 3000 | Broker web console UI |
 | ADMIN_API_KEY | admin-key-123 | Dev API key |
+
+### Nexus Configuration
+| Variable | Default | What it's for |
+|----------|---------|---------------|
+| NEXUS_DB_PORT | 5434 | Nexus PostgreSQL port |
+| NEXUS_PORT | 4000 | Nexus server port |
+| NEXUS_CONSOLE_PORT | 4001 | Nexus console UI |
+| NEXUS_CONSOLE_API_KEY | nexus-console-key-... | Dev API key |
+| NEXUS_JWT_SECRET | nexus-jwt-secret-... | JWT signing secret (dev only) |
 
 Change these in the Makefile and run `make env-setup` to regenerate config files.
 
 ## Available Commands
 
 ```bash
-make help              # Show all commands
+# Help & Setup
+make help              # Show all commands with descriptions
+make env-setup         # Generate all .env files from Makefile config
+
+# Broker Commands
+make broker-dev        # Start broker with hot reload
+make console-dev       # Start broker web console
+make broker-db-up      # Start broker database
+make broker-db-down    # Stop broker database
+make broker-db-reset   # Reset broker database (destroys data!)
+make broker-db-shell   # Open PostgreSQL shell
+
+# Nexus Commands
+make nexus-dev         # Start nexus server with hot reload
+make nexus-db-up       # Start nexus database
+make nexus-db-down     # Stop nexus database
+make nexus-db-reset    # Reset nexus database (destroys data!)
+make nexus-db-setup    # Apply Prisma schema to nexus database
+make nexus-db-shell    # Open nexus PostgreSQL shell
+
+# Development Workflows
 make dev               # Setup dev environment (one command)
 make mvp               # Run full MVP demo (one command)
-make broker-dev        # Start broker with hot reload
-make console-dev       # Start web console
-make broker-db-up      # Start database
-make broker-db-down    # Stop database
-make broker-db-reset   # Reset database (destroys data!)
-make broker-db-shell   # Open PostgreSQL shell
 make kill-all          # Kill all running processes
+make db-nuke-all       # Nuclear option: destroy ALL databases
 ```
 
 ## Architecture Overview
@@ -134,7 +191,11 @@ make kill-all          # Kill all running processes
 realm-mesh/
 ├── broker/
 │   ├── service/        # Core broker service (WebSocket gateway)
-│   └── console/        # Web UI (Next.js)
+│   └── console/        # Broker web UI (Next.js)
+├── nexus/
+│   ├── server/         # Next-gen Nexus gateway (Express + Prisma)
+│   ├── console/        # Nexus web UI (Next.js)
+│   └── shared/         # Shared types & DTOs (TypeScript)
 ├── mvp/                # MVP demo scenarios
 │   ├── agents/         # Sample agents (pricing, inventory)
 │   └── scenarios/      # Demo scripts

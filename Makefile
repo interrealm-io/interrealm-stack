@@ -10,7 +10,7 @@
         console console-dev \
         mvp-install mvp-demo mvp-fast mvp-continuous mvp-price-check mvp-stress mvp-multi-realm mvp-all-patterns \
         kill-all kill-broker kill-console kill-nexus kill-agents \
-        env-setup env-broker env-console env-mvp env-nexus \
+        env-setup env-broker env-console env-mvp env-nexus env-nexus-console \
         dev mvp mvp-start mvp-stop \
         release \
         docker-build docker-build-broker docker-build-console docker-up docker-down docker-logs docker-push docker-push-all
@@ -44,6 +44,20 @@ NEXUS_DB_NAME := nexus
 NEXUS_DB_USER := nexus_user
 NEXUS_DB_PASSWORD := nexus_pass
 NEXUS_DATABASE_URL := postgresql://$(NEXUS_DB_USER):$(NEXUS_DB_PASSWORD)@$(NEXUS_DB_HOST):$(NEXUS_DB_PORT)/$(NEXUS_DB_NAME)
+
+# Nexus Server Configuration
+NEXUS_PORT := 4000
+NEXUS_JWT_SECRET := nexus-jwt-secret-change-in-production
+NEXUS_JWT_EXPIRES_IN := 24h
+NEXUS_CONSOLE_API_KEY := nexus-console-key-change-in-production
+NEXUS_CORS_ORIGIN := http://localhost:4001
+NEXUS_CORS_CREDENTIALS := true
+
+# Nexus Console Configuration
+NEXUS_CONSOLE_PORT := 4001
+NEXUS_API_URL := http://localhost:$(NEXUS_PORT)/api
+NEXUS_WS_URL := ws://localhost:$(NEXUS_PORT)/gateway
+NEXUS_AUTH_URL := http://localhost:$(NEXUS_PORT)/api/auth/token
 
 # Broker Service
 ADMIN_API_KEY := admin-key-123
@@ -140,7 +154,10 @@ help:
 	@echo ""
 	@echo "=� Environment Setup:"
 	@echo "  make env-setup          - Generate all .env files from config"
+	@echo "  make env-nexus          - Generate nexus server .env file"
+	@echo "  make env-nexus-console  - Generate nexus console .env.local file"
 	@echo "  make broker-db-setup    - Apply Prisma schema to database"
+	@echo "  make nexus-db-setup     - Apply Nexus Prisma schema to database"
 	@echo ""
 	@echo "=( Docker Commands:"
 	@echo "  make docker-build       - Build all Docker images"
@@ -156,7 +173,7 @@ help:
 # ==============================================
 # Environment Setup
 # ==============================================
-env-setup: env-broker env-console env-mvp env-nexus
+env-setup: env-broker env-console env-mvp env-nexus env-nexus-console
 	@echo " All .env files generated!"
 
 env-broker:
@@ -229,7 +246,41 @@ env-nexus:
 	@echo "# Logging" >> $(NEXUS_DIR)/.env
 	@echo "LOG_LEVEL=$(LOG_LEVEL)" >> $(NEXUS_DIR)/.env
 	@echo "NODE_ENV=$(NODE_ENV)" >> $(NEXUS_DIR)/.env
+	@echo "" >> $(NEXUS_DIR)/.env
+	@echo "# Auth Configuration" >> $(NEXUS_DIR)/.env
+	@echo "# IMPORTANT: Change these values in production!" >> $(NEXUS_DIR)/.env
+	@echo "JWT_SECRET=$(NEXUS_JWT_SECRET)" >> $(NEXUS_DIR)/.env
+	@echo "JWT_EXPIRES_IN=$(NEXUS_JWT_EXPIRES_IN)" >> $(NEXUS_DIR)/.env
+	@echo "CONSOLE_API_KEY=$(NEXUS_CONSOLE_API_KEY)" >> $(NEXUS_DIR)/.env
+	@echo "" >> $(NEXUS_DIR)/.env
+	@echo "# Server Configuration" >> $(NEXUS_DIR)/.env
+	@echo "PORT=$(NEXUS_PORT)" >> $(NEXUS_DIR)/.env
+	@echo "" >> $(NEXUS_DIR)/.env
+	@echo "# CORS Configuration" >> $(NEXUS_DIR)/.env
+	@echo "CORS_ORIGIN=$(NEXUS_CORS_ORIGIN)" >> $(NEXUS_DIR)/.env
+	@echo "CORS_CREDENTIALS=$(NEXUS_CORS_CREDENTIALS)" >> $(NEXUS_DIR)/.env
 	@echo " Generated $(NEXUS_DIR)/.env"
+
+env-nexus-console:
+	@echo "=� Generating nexus console .env.local file..."
+	@echo "# Nexus Console Configuration (Auto-generated)" > nexus/console/.env.local
+	@echo "" >> nexus/console/.env.local
+	@echo "# Nexus Server API URL" >> nexus/console/.env.local
+	@echo "NEXT_PUBLIC_NEXUS_API_URL=$(NEXUS_API_URL)" >> nexus/console/.env.local
+	@echo "" >> nexus/console/.env.local
+	@echo "# Nexus WebSocket Gateway URL" >> nexus/console/.env.local
+	@echo "NEXT_PUBLIC_NEXUS_WS_URL=$(NEXUS_WS_URL)" >> nexus/console/.env.local
+	@echo "" >> nexus/console/.env.local
+	@echo "# Console API Key (must match CONSOLE_API_KEY in server/.env)" >> nexus/console/.env.local
+	@echo "# IMPORTANT: Change this value in production!" >> nexus/console/.env.local
+	@echo "NEXT_PUBLIC_CONSOLE_API_KEY=$(NEXUS_CONSOLE_API_KEY)" >> nexus/console/.env.local
+	@echo "" >> nexus/console/.env.local
+	@echo "# Console Port" >> nexus/console/.env.local
+	@echo "PORT=$(NEXUS_CONSOLE_PORT)" >> nexus/console/.env.local
+	@echo "" >> nexus/console/.env.local
+	@echo "# Nexus Auth URL (internal server-side only, used by Next.js API routes)" >> nexus/console/.env.local
+	@echo "NEXUS_AUTH_URL=$(NEXUS_AUTH_URL)" >> nexus/console/.env.local
+	@echo " Generated nexus/console/.env.local"
 
 broker-db-setup:
 	@echo "=� Setting up database schema with Prisma..."

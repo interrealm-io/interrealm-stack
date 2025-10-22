@@ -27,7 +27,7 @@ export const CreateRealmDTOSchema = z.object({
   routes: z.array(RouteSchema).default([]),
   bridges: z.array(BridgeSchema).default([]),
   metadata: z.record(z.unknown()).optional(),
-  parentRealmId: z.string().optional(), // Optional parent realm ID for hierarchy
+  parentRealmId: z.string().nullish(), // Optional parent realm ID for hierarchy (accepts null or undefined)
 });
 
 export type CreateRealmDTO = z.infer<typeof CreateRealmDTOSchema>;

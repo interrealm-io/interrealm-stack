@@ -199,6 +199,7 @@ export class BridgeManager extends EventEmitter {
         contractName: config.contractName,
         contractVersion: config.contractVersion,
         capabilities: this.capabilityManifest,
+        generatedContract: (config as any).generatedContract, // Include the SDK-generated contract
         timestamp: new Date().toISOString(),
       }
     });
