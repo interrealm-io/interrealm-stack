@@ -160,6 +160,38 @@ model Capability {
 }
 
 // ============================================
+// Contracts - Collection of Capabilities
+// ============================================
+model Contract {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(255)
+  version     String   @db.VarChar(50)
+
+  // Capabilities provided and required by this contract
+  provided    Json     @db.JsonB
+  // Array of capability definitions that this contract provides
+
+  required    Json     @default("[]") @db.JsonB
+  // Array of capability names/versions that this contract requires
+
+  // Metadata
+  description String?  @db.Text
+  author      String?  @db.VarChar(255)
+  tags        String[] @default([])
+
+  // Contract generation info
+  generatedFrom String? @map("generated_from") @db.VarChar(50)
+  // "sdk-scan", "manual", "imported"
+
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@unique([name, version], name: "name_version")
+  @@index([name], name: "idx_contracts_name")
+  @@map("contracts")
+}
+
+// ============================================
 // Members - Everything that connects to the mesh
 // ============================================
 model Member {
@@ -170,9 +202,16 @@ model Member {
   memberType    String    @map("member_type") @db.VarChar(50)
   // consumer, provider, agent-runtime, hybrid
 
-  // Contract reference
+  // Contract reference (reference to the Contract model)
   contractName    String?   @map("contract_name") @db.VarChar(255)
   contractVersion String?   @map("contract_version") @db.VarChar(50)
+
+  // Scanned contract from SDK annotations (stored directly on member)
+  scannedContract Json?     @map("scanned_contract") @db.JsonB
+  // This is the auto-generated contract from scanning SDK decorators
+
+  lastContractScan DateTime? @map("last_contract_scan") @db.Timestamp(6)
+  // When the contract was last scanned/updated
 
   // Authentication
   authType      String    @default("api-key") @map("auth_type") @db.VarChar(50)

@@ -39,7 +39,7 @@ export function AgentList() {
     try {
       // Hard-coded config for ping-pong test
       const config = {
-        endpoint: "ws://localhost:3001/gateway",
+        endpoint: "ws://localhost:4000/gateway",
         pingApiKey: "test-ping-key-12345",
         pongApiKey: "test-pong-key-67890",
         realmId: "test.ping-pong-realm",

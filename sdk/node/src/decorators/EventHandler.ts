@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { globalContractScanner } from '../realm/ContractScanner';
 
 export interface EventHandlerMetadata {
   capability: string;
@@ -22,6 +23,10 @@ export function EventHandler(metadata: Omit<EventHandlerMetadata, 'methodName'>)
       methodName: propertyKey
     });
     Reflect.defineMetadata(EVENT_HANDLER_METADATA_KEY, handlers, target.constructor);
+
+    // Register with contract scanner for capability generation
+    globalContractScanner.registerEventHandlerClass(target.constructor);
+
     return descriptor;
   };
 }

@@ -8,6 +8,7 @@ import { consoleAuthMiddleware } from './middleware/auth.middleware';
 import authRouter from './controllers/auth.controller';
 import realmRouter from './controllers/realm.controller';
 import memberRouter from './controllers/member.controller';
+import contractRouter from './controllers/contract.controller';
 import { GatewayManager } from './gateway/gateway-manager';
 
 // TODO: Import additional routers when implemented
@@ -58,6 +59,7 @@ app.use('/api/auth', authRouter);
 // Console-authenticated routes (require CONSOLE_API_KEY)
 app.use('/api/realms', consoleAuthMiddleware, realmRouter);
 app.use('/api/members', consoleAuthMiddleware, memberRouter);
+app.use('/api/contracts', consoleAuthMiddleware, contractRouter);
 
 // TODO: Add routes when controllers are implemented
 // app.use('/api/bridges', bridgeRouter);

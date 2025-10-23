@@ -27,6 +27,13 @@ export function CreateMemberDialog({ open, onOpenChange, onMemberCreated, realmI
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Get WebSocket gateway URL from environment
+  const wsGatewayUrl = process.env.NEXT_PUBLIC_NEXUS_WS_URL;
+
+  if (!wsGatewayUrl) {
+    throw new Error('NEXT_PUBLIC_NEXUS_WS_URL environment variable is not set');
+  }
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
@@ -233,7 +240,7 @@ export function CreateMemberDialog({ open, onOpenChange, onMemberCreated, realmI
                 <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
                   <li>Copy the API key above and save it securely</li>
                   <li>Use the API key in your SDK client configuration</li>
-                  <li>Connect your client to the gateway at ws://localhost:3001</li>
+                  <li>Connect your client to the gateway at {wsGatewayUrl}</li>
                   <li>View connection status in the Nexus Console</li>
                 </ol>
               </div>

@@ -21,7 +21,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the Nexus server auth endpoint (same endpoint, just proxying)
-    const nexusAuthUrl = process.env.NEXUS_AUTH_URL || 'http://localhost:3001/api/auth/token';
+    const nexusAuthUrl = process.env.NEXUS_AUTH_URL;
+
+    if (!nexusAuthUrl) {
+      console.error('[Console Auth API] NEXUS_AUTH_URL environment variable not set');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     console.log('[Console Auth API] Proxying to Nexus server:', nexusAuthUrl);
 
     const nexusResponse = await fetch(nexusAuthUrl, {

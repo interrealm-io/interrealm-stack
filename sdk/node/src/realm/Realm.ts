@@ -48,6 +48,15 @@ export class Realm extends EventEmitter {
     console.log('Step 3: Registering agents...');
     await this.agentRegistry.registerAll();
 
+    // 3.5. Generate contract from scanned components
+    console.log('Step 3.5: Generating contract from SDK annotations...');
+    const generatedContract = this.generateContract();
+    if (generatedContract) {
+      console.log(`  Generated contract with ${generatedContract.spec.provided.length} capabilities`);
+      // Store the generated contract in config for later transmission
+      (this.config as any).generatedContract = generatedContract;
+    }
+
     // 4. Connect to the gateway (with auth, capability scanning, and handshake)
     console.log('Step 4: Connecting to Nexus gateway...');
     await this.bridgeManager.connect();
@@ -60,6 +69,25 @@ export class Realm extends EventEmitter {
     this.emit('ready');
 
     console.log(`✓ Member ${this.config.memberId} is ready`);
+  }
+
+  /**
+   * Generate a contract from scanned SDK decorators
+   */
+  private generateContract(): any | null {
+    const { globalContractScanner } = require('./ContractScanner');
+
+    const summary = globalContractScanner.getSummary();
+
+    if (summary.services === 0 && summary.eventHandlers === 0) {
+      console.log('  No services or event handlers found to generate contract');
+      return null;
+    }
+
+    const contractName = this.config.contractName || `${this.config.memberId}-contract`;
+    const contractVersion = this.config.contractVersion || '1.0.0';
+
+    return globalContractScanner.generateContract(contractName, contractVersion);
   }
 
   private async discoverComponents(): Promise<void> {

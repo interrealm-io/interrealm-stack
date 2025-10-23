@@ -5,7 +5,11 @@
 
 import type { Realm, Member } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_NEXUS_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_NEXUS_API_URL;
+
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_NEXUS_API_URL environment variable is not set');
+}
 
 /**
  * Get JWT token from session storage

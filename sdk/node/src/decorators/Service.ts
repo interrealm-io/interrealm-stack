@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { ServiceRegistry } from '../service/ServiceRegistry';
+import { globalContractScanner } from '../realm/ContractScanner';
 
 export interface ServiceMetadata {
   capability: string;
@@ -18,6 +19,9 @@ export function Service(metadata: ServiceMetadata) {
 
     // Register this service class globally for discovery
     ServiceRegistry.registerServiceClass(constructor, metadata);
+
+    // Register with contract scanner for capability generation
+    globalContractScanner.registerServiceClass(constructor, metadata);
 
     return constructor;
   };
