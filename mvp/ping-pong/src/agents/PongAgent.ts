@@ -1,9 +1,11 @@
 import { Agent, EventHandler, Realm } from '@interrealm/sdk';
+import 'reflect-metadata';
 
 interface PingMessage {
   timestamp: number;
   messageId: string;
   from: string;
+  count: number;
 }
 
 interface PongMessage {
@@ -16,44 +18,45 @@ interface PongMessage {
 @Agent({
   capability: 'test.ping-pong',
   name: 'pong-agent',
-  version: '1.0.0',
+  version: '1.0.0'
 })
-export class PongAgent {
+export class PongAgentClass {
   private realm!: Realm;
   private pongPublisher: any;
   private pongCount = 0;
 
   async onInit(realm: Realm): Promise<void> {
     this.realm = realm;
-
-    // Create event publisher for Pong messages
-    this.pongPublisher = realm.getEventBus().createPublisher(
-      'test.ping-pong',
-      'Pong',
-      'ping-pong'
-    );
-
-    console.log('PongAgent initialized and listening for Pings...');
+    console.log('[PongAgent] Initialized and listening for Pings...');
   }
 
   @EventHandler({
     capability: 'test.ping-pong',
     eventName: 'Ping',
-    topic: 'ping-pong',
+    topic: 'ping-pong'
   })
   async onPingReceived(payload: PingMessage): Promise<void> {
     this.pongCount++;
     console.log(`📥 Received Ping #${this.pongCount}: ${payload.messageId} from ${payload.from}`);
 
+    // Lazy create publisher on first ping
+    if (!this.pongPublisher) {
+      this.pongPublisher = this.realm.getEventBus().createPublisher(
+        'test.ping-pong',
+        'Pong',
+        'ping-pong'
+      );
+    }
+
     // Send Pong response
     const response: PongMessage = {
       timestamp: payload.timestamp,
-      messageId: `pong-${this.pongCount}-${Date.now()}`,
+      messageId: `pong-${this.pongCount}`,
       from: this.realm.getConfig().memberId,
-      originalPingId: payload.messageId,
+      originalPingId: payload.messageId
     };
 
-    console.log(`📤 Sending Pong response: ${response.messageId}`);
+    console.log(`📤 Sending Pong #${this.pongCount} in response to ${payload.messageId}`);
     await this.pongPublisher.publish(response);
   }
 }

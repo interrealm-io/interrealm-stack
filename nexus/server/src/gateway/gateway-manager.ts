@@ -10,6 +10,7 @@ import { ActivityMonitor } from './activity-monitor';
 import { parse as parseUrl } from 'url';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
+import { prisma } from '../config/database';
 
 export class GatewayManager {
   private wss?: WebSocketServer;
@@ -26,8 +27,8 @@ export class GatewayManager {
     this.connectionManager = new ConnectionManager();
     this.messageRouter = new MessageRouter(this.connectionManager);
     this.handshakeHandler = new HandshakeHandler(this.connectionManager);
-    this.serviceCallHandler = new ServiceCallHandler(this.connectionManager);
-    this.eventHandler = new EventHandler(this.connectionManager, this.messageRouter);
+    this.serviceCallHandler = new ServiceCallHandler(this.connectionManager, prisma);
+    this.eventHandler = new EventHandler(this.connectionManager, this.messageRouter, prisma);
     this.activityMonitor = new ActivityMonitor();
 
     // Enable monitoring by default in development
@@ -244,6 +245,10 @@ export class GatewayManager {
           await this.serviceCallHandler.handleServiceCall(memberId, payload);
           break;
 
+        case 'service-response':
+          await this.serviceCallHandler.handleServiceResponse(memberId, payload);
+          break;
+
         case 'event-publish':
           const connection = this.connectionManager.getConnection(memberId);
           if (connection?.metadata?.realmId) {
@@ -256,6 +261,10 @@ export class GatewayManager {
             );
           }
           await this.eventHandler.handleEventPublish(memberId, payload);
+          break;
+
+        case 'event-subscribe':
+          await this.eventHandler.handleEventSubscribe(memberId, payload);
           break;
 
         default:

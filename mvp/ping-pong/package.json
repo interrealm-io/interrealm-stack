@@ -1,0 +1,30 @@
+{
+  "name": "@interrealm/ping-pong",
+  "version": "1.0.0",
+  "description": "Cross-realm ping-pong test agents",
+  "type": "module",
+  "scripts": {
+    "ping": "tsx src/ping-agent.ts",
+    "pong": "tsx src/pong-agent.ts",
+    "test": "npm run ping & npm run pong"
+  },
+  "keywords": [
+    "realm",
+    "test",
+    "ping-pong"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@interrealm/sdk": "file:../../sdk/node",
+    "dotenv": "^16.3.1",
+    "reflect-metadata": "^0.1.13",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
